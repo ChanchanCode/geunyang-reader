@@ -39,7 +39,12 @@ function showSheet(i) {
 }
 async function main() {
   const buf = await fetchDocBuffer();
-  wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  // csv는 인코딩(UTF-8/EUC-KR)을 직접 판별해 문자열로 파싱 — SheetJS 기본 코드페이지는 한글을 깨뜨린다
+  if (/\.csv$/i.test(DOC_NAME)) {
+    wb = XLSX.read(decodeText(buf), { type: 'string' });
+  } else {
+    wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  }
   const tabs = document.getElementById('tabs');
   if (wb.SheetNames.length > 1) {
     tabs.style.display = 'flex';

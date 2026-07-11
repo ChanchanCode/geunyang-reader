@@ -105,6 +105,20 @@ function fitPageWidth(wPx) {
     'width=' + Math.ceil(wPx) + ', user-scalable=yes, minimum-scale=0.1, maximum-scale=8');
 }
 
+// 고정 폭 콘텐츠를 transform scale로 화면 폭에 맞춤 — 렌더 완료가 늦어
+// viewport 동적 변경이 안 먹는 페이지(docx)용. 레이아웃 폭·높이도 함께 보정한다.
+function scaleToFit(el, contentW) {
+  const s = window.innerWidth / contentW;
+  if (s >= 1) return;
+  el.style.transformOrigin = 'top left';
+  el.style.transform = 'scale(' + s + ')';
+  el.style.width = contentW + 'px';  // 레이아웃 폭 = 콘텐츠 폭 → 스케일 후 시각 폭 = 화면 폭
+  requestAnimationFrame(() => {
+    el.style.height = el.getBoundingClientRect().height + 'px';
+    el.style.overflow = 'hidden';
+  });
+}
+
 // 렌더 결과물에서 인라인 font-family를 번들 폰트로 교정 — hwp·docx용
 function fixFontFamilies(root) {
   root.querySelectorAll('[style*="font-family"]').forEach(el => {
