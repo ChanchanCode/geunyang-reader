@@ -19,7 +19,12 @@
 <script>
 async function main() {
   const buf = await fetchDocBuffer();
-  document.querySelector('#content pre').textContent = decodeText(buf);
+  const content = document.getElementById('content');
+  content.querySelector('pre').textContent = decodeText(buf);
+  applyReaderPrefs(content);
+  content.querySelector('pre').style.fontSize = 'inherit';
+  content.querySelector('pre').style.lineHeight = 'inherit';
+  setupPageMode(content);
   hideLoading();
 }
 main().catch(showError);

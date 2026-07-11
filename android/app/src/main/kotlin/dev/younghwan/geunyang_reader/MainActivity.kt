@@ -32,6 +32,15 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                 }
+                "shareFile" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) {
+                        result.error("ARG", "path required", null)
+                    } else {
+                        shareFile(path)
+                        result.success(null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -74,6 +83,16 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun shareFile(path: String) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", File(path))
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = contentResolver.getType(uri) ?: "application/octet-stream"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(send, null))
     }
 
     private fun installApk(path: String) {

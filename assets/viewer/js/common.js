@@ -2,6 +2,27 @@
 const Q = new URLSearchParams(location.search);
 const DOC_URL = Q.get('doc');   // 문서 파일의 서버 URL (같은 origin)
 const DOC_NAME = Q.get('name') || '';
+const TH = Q.get('th') || 'light';        // light | dark
+const FS = parseFloat(Q.get('fs') || '16');   // 본문 글자 크기(px)
+const LH = parseFloat(Q.get('lh') || '1.65'); // 줄 간격
+const PM = Q.get('pm') || 'scroll';       // scroll | page
+const LANG = Q.get('lang') || 'ko';
+
+const MSG = LANG === 'ko'
+  ? { loading: '여는 중…', errTitle: '파일을 열지 못했어요' }
+  : { loading: 'Opening…', errTitle: 'Couldn\'t open this file' };
+
+// 문서 고유색을 쓰는 페이지(docx·hwp·hwpx)는 <html data-force-light>로 다크 테마를 거부한다
+if (!document.documentElement.hasAttribute('data-force-light')) {
+  document.documentElement.dataset.theme = TH;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const l = document.querySelector('#loading .msg');
+  if (l) l.textContent = MSG.loading;
+  const e = document.querySelector('#error h2');
+  if (e) e.textContent = MSG.errTitle;
+});
 
 function showLoading(msg) {
   const el = document.getElementById('loading');
@@ -30,7 +51,7 @@ function showError(detail) {
 
 async function fetchDocBuffer() {
   const res = await fetch(DOC_URL);
-  if (!res.ok) throw new Error('파일 읽기 실패 (HTTP ' + res.status + ')');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return await res.arrayBuffer();
 }
 
@@ -51,4 +72,47 @@ function resolveRelative(src) {
   } catch (e) {
     return src;
   }
+}
+
+// 읽기 설정(글자 크기·줄 간격)을 본문에 적용 — md·txt용
+function applyReaderPrefs(el) {
+  el.style.fontSize = FS + 'px';
+  el.style.lineHeight = LH;
+}
+
+// 스와이프 페이지 모드: 본문을 가로 컬럼으로 잘라 한 장씩 넘긴다 — md·txt용.
+// 컬럼 폭 + 간격 = 컨테이너 폭이 되도록 CSS(doc.css .paged)와 맞물려 동작.
+function setupPageMode(container) {
+  if (PM !== 'page') return;
+  document.body.classList.add('paged');
+
+  const posKey = 'pos:' + DOC_URL;
+  let snapTimer;
+  container.addEventListener('scroll', () => {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => {
+      const w = container.clientWidth;
+      const target = Math.round(container.scrollLeft / w) * w;
+      if (Math.abs(container.scrollLeft - target) > 1) {
+        container.scrollTo({ left: target, behavior: 'smooth' });
+      }
+      try { localStorage.setItem(posKey, String(target)); } catch (e) {}
+    }, 90);
+  });
+
+  // 좌우 가장자리 탭으로도 넘김 (링크·선택 중은 제외)
+  container.addEventListener('click', (ev) => {
+    if (ev.target.closest('a')) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    const w = container.clientWidth;
+    const x = ev.clientX;
+    if (x > w * 0.8) container.scrollBy({ left: w, behavior: 'smooth' });
+    else if (x < w * 0.2) container.scrollBy({ left: -w, behavior: 'smooth' });
+  });
+
+  try {
+    const saved = parseFloat(localStorage.getItem(posKey) || '0');
+    if (saved > 0) requestAnimationFrame(() => { container.scrollLeft = saved; });
+  } catch (e) {}
 }

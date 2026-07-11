@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'home_screen.dart';
+import 'prefs.dart';
 import 'recents.dart';
 import 'server.dart';
+import 'strings.dart';
 import 'viewer_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -11,6 +13,7 @@ const _channel = MethodChannel('geunyang/native');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Prefs.init();
   await LocalServer.start();
   runApp(const GeunyangApp());
 }
@@ -50,20 +53,28 @@ class _GeunyangAppState extends State<GeunyangApp> {
   @override
   Widget build(BuildContext context) {
     const seed = Color(0xFF3B6EF5);
-    return MaterialApp(
-      title: '그냥 리더',
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-        appBarTheme: const AppBarTheme(centerTitle: false),
+    return ListenableBuilder(
+      listenable: Prefs.revision,
+      builder: (context, child) => MaterialApp(
+        title: S.appName,
+        navigatorKey: navigatorKey,
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: seed),
+          appBarTheme: const AppBarTheme(centerTitle: false),
+        ),
+        darkTheme: ThemeData(
+          colorScheme:
+              ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+          appBarTheme: const AppBarTheme(centerTitle: false),
+        ),
+        themeMode: switch (Prefs.themeMode) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          _ => ThemeMode.system,
+        },
+        home: const HomeScreen(),
       ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
-        appBarTheme: const AppBarTheme(centerTitle: false),
-      ),
-      themeMode: ThemeMode.system,
-      home: const HomeScreen(),
     );
   }
 }

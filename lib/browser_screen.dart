@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'formats.dart';
 import 'main.dart' show openFile;
+import 'strings.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({super.key, required this.initialPath});
@@ -56,7 +57,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     } catch (e) {
       setState(() {
         _entries = [];
-        _error = '이 폴더에 접근할 수 없어요';
+        _error = S.cantAccess;
       });
     }
   }
@@ -82,7 +83,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   Widget build(BuildContext context) {
     final rel = _path == _root
-        ? '내장 저장소'
+        ? S.internalStorage
         : _path.replaceFirst('$_root/', '');
     return PopScope(
       canPop: _atRoot,
@@ -98,7 +99,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ? Center(child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.outline)))
             : _entries.isEmpty
                 ? Center(
-                    child: Text('표시할 문서가 없어요',
+                    child: Text(S.emptyFolder,
                         style: TextStyle(color: Theme.of(context).colorScheme.outline)))
                 : ListView.builder(
                     itemCount: _entries.length,

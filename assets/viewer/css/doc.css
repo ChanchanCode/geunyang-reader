@@ -29,6 +29,19 @@
   --muted: #8a8f98;
   --accent: #3b82f6;
   --border: #e2e4e8;
+  --code-bg: #f0f1f3;
+  --pre-bg: #f6f8fa;
+}
+
+:root[data-theme="dark"] {
+  --fg: #e4e6ea;
+  --bg: #0f1114;
+  --paper: #1a1d22;
+  --muted: #8a8f98;
+  --accent: #6ba1ff;
+  --border: #30353d;
+  --code-bg: #262b33;
+  --pre-bg: #22262e;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -69,3 +82,17 @@ html, body {
   line-height: 1.65; font-size: 16px;
   word-wrap: break-word; overflow-wrap: break-word;
 }
+
+/* 스와이프 페이지 모드: 본문을 가로 컬럼(한 컬럼 = 한 페이지)으로 배치.
+   컬럼폭(100vw-36px) + 간격(36px) = 100vw 가 페이지 스텝이 된다. */
+body.paged { overflow: hidden; }
+body.paged .flow {
+  max-width: none; height: 100vh; width: 100vw;
+  padding: 24px 18px; margin: 0;
+  column-width: calc(100vw - 36px);
+  column-gap: 36px;
+  column-fill: auto;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+body.paged .flow img { max-height: 80vh; }

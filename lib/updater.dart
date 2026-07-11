@@ -7,6 +7,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'strings.dart';
+
 /// GitHub Releases 기반 인앱 업데이트.
 /// 릴리스 태그는 v0.1.0 형식, 자산에 .apk 파일이 있어야 한다.
 /// 저장소를 만든 뒤 아래 상수만 바꾸면 된다.
@@ -32,7 +34,7 @@ class Updater {
   static Future<void> check(BuildContext context, {bool silent = false}) async {
     if (!configured) {
       if (!silent && context.mounted) {
-        _snack(context, '업데이트 저장소가 아직 설정되지 않았어요.');
+        _snack(context, S.updateNotConfigured);
       }
       return;
     }
@@ -43,7 +45,7 @@ class Updater {
       final apkUrl = _findApkUrl(release);
       if (apkUrl == null || !_isNewer(latest, info.version)) {
         if (!silent && context.mounted) {
-          _snack(context, '최신 버전이에요 (v${info.version})');
+          _snack(context, S.upToDate(info.version));
         }
         return;
       }
@@ -51,18 +53,18 @@ class Updater {
       final ok = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: Text('새 버전 v$latest'),
-          content: Text('현재 v${info.version} → v$latest 업데이트가 있어요.'),
+          title: Text(S.newVersion(latest)),
+          content: Text(S.updateBody(info.version, latest)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('나중에')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('업데이트')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(S.later)),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(S.update)),
           ],
         ),
       );
       if (ok != true || !context.mounted) return;
       await _downloadAndInstall(context, apkUrl, latest);
     } catch (e) {
-      if (!silent && context.mounted) _snack(context, '업데이트 확인 실패: $e');
+      if (!silent && context.mounted) _snack(context, S.updateCheckFailed(e));
     }
   }
 
@@ -110,7 +112,7 @@ class Updater {
       context: context,
       barrierDismissible: false,
       builder: (c) => AlertDialog(
-        title: const Text('다운로드 중…'),
+        title: Text(S.downloading),
         content: ValueListenableBuilder<double?>(
           valueListenable: progress,
           builder: (context, v, child) => LinearProgressIndicator(value: v),
@@ -155,7 +157,7 @@ class Updater {
     } catch (e) {
       if (context.mounted) {
         Navigator.pop(context);
-        _snack(context, '다운로드 실패: $e');
+        _snack(context, S.downloadFailed(e));
       }
     }
   }

@@ -35,10 +35,33 @@ html, body { height: 100%; overflow: hidden; background: var(--paper); }
 async function main() {
   const buf = await fetchDocBuffer();
   const book = ePub(buf);
-  const rendition = book.renderTo('content', {
-    flow: 'scrolled-doc', width: '100%', fullsize: true,
+  const paged = PM === 'page';
+  const rendition = paged
+    ? book.renderTo('content', { flow: 'paginated', width: '100%', height: '100%', snap: true })
+    : book.renderTo('content', { flow: 'scrolled-doc', width: '100%', fullsize: true });
+
+  rendition.themes.register('dark', {
+    body: { background: '#0f1114 !important', color: '#e4e6ea !important' },
+    'a, a *': { color: '#6ba1ff !important' },
   });
+  if (TH === 'dark') {
+    rendition.themes.select('dark');
+    document.getElementById('content').style.background = '#0f1114';
+  }
+  rendition.themes.fontSize(FS + 'px');
+
   await rendition.display();
+
+  if (paged) {
+    // 본문(iframe) 위 스와이프로 페이지 넘김
+    let sx = 0;
+    rendition.on('touchstart', e => { sx = e.changedTouches[0].screenX; });
+    rendition.on('touchend', e => {
+      const dx = e.changedTouches[0].screenX - sx;
+      if (dx < -50) rendition.next();
+      else if (dx > 50) rendition.prev();
+    });
+  }
   await book.loaded.navigation.then(nav => {
     const sel = document.getElementById('toc');
     const flat = [];

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="cache" path="."/>
+    <!-- 뷰어에서 연 외부 저장소 파일 공유용 -->
+    <external-path name="external" path="."/>
 </paths>

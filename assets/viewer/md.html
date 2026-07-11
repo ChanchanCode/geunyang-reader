@@ -8,13 +8,13 @@
 .flow h1, .flow h2 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
 .flow h1 { font-size: 1.7em; } .flow h2 { font-size: 1.4em; } .flow h3 { font-size: 1.2em; }
 .flow img { max-width: 100%; height: auto; }
-.flow pre { background: #f6f8fa; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13.5px; }
-.flow code { font-family: ui-monospace, Menlo, monospace; background: #f0f1f3; border-radius: 4px; padding: 1px 5px; font-size: 0.9em; }
+.flow pre { background: var(--pre-bg); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13.5px; }
+.flow code { font-family: ui-monospace, Menlo, monospace; background: var(--code-bg); border-radius: 4px; padding: 1px 5px; font-size: 0.9em; }
 .flow pre code { background: none; padding: 0; }
 .flow blockquote { margin: 0 0 16px; padding: 0 1em; color: var(--muted); border-left: 4px solid var(--border); }
 .flow table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
 .flow th, .flow td { border: 1px solid var(--border); padding: 6px 12px; }
-.flow th { background: #f6f8fa; }
+.flow th { background: var(--pre-bg); }
 .flow a { color: var(--accent); }
 .flow hr { border: none; border-top: 1px solid var(--border); }
 </style>
@@ -38,6 +38,8 @@ async function main() {
     const href = a.getAttribute('href') || '';
     if (!/^(https?:|#|mailto:)/.test(href)) a.href = resolveRelative(href);
   });
+  applyReaderPrefs(el);
+  setupPageMode(el);
   hideLoading();
 }
 main().catch(showError);

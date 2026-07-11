@@ -1,13 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'browser_screen.dart';
 import 'formats.dart';
 import 'main.dart' show openFile;
+import 'prefs.dart';
 import 'recents.dart';
+import 'settings_screen.dart';
+import 'strings.dart';
 import 'updater.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Prefs.revision.addListener(_onPrefs);
     _refresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Updater.autoCheck(context);
@@ -33,8 +36,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    Prefs.revision.removeListener(_onPrefs);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onPrefs() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -69,34 +77,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ).then((_) => _refresh());
   }
 
-  Future<void> _showAbout() async {
-    final info = await PackageInfo.fromPlatform();
-    if (!mounted) return;
-    showAboutDialog(
-      context: context,
-      applicationName: '그냥 리더',
-      applicationVersion: 'v${info.version}',
-      applicationLegalese:
-          '광고 없는 문서 뷰어.\npdf · docx · hwp · hwpx · html · md · txt · xlsx · epub',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('그냥 리더'),
+        title: Text(S.appName),
         actions: [
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'update') Updater.check(context);
-              if (v == 'about') _showAbout();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'update', child: Text('업데이트 확인')),
-              PopupMenuItem(value: 'about', child: Text('정보')),
-            ],
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: S.settings,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ).then((_) => _refresh()),
           ),
         ],
       ),
@@ -115,15 +109,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('저장소 접근 권한이 필요해요',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(S.needStorageTitle,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 6),
-                      Text('기기의 문서 파일을 읽기 위한 권한이에요. 한 번만 허용하면 돼요.',
+                      Text(S.needStorageBody,
                           style: TextStyle(fontSize: 13, color: cs.onSecondaryContainer)),
                       const SizedBox(height: 10),
                       FilledButton.tonal(
                         onPressed: _requestStorage,
-                        child: const Text('권한 허용하기'),
+                        child: Text(S.grantPermission),
                       ),
                     ],
                   ),
@@ -134,25 +128,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 _QuickButton(
                   icon: Icons.download_outlined,
-                  label: '다운로드',
+                  label: S.download,
                   onTap: () => _browse('/storage/emulated/0/Download'),
                 ),
                 const SizedBox(width: 10),
                 _QuickButton(
                   icon: Icons.description_outlined,
-                  label: '문서',
+                  label: S.documents,
                   onTap: () => _browse('/storage/emulated/0/Documents'),
                 ),
                 const SizedBox(width: 10),
                 _QuickButton(
                   icon: Icons.smartphone_outlined,
-                  label: '전체',
+                  label: S.allStorage,
                   onTap: () => _browse('/storage/emulated/0'),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            Text('최근 파일',
+            Text(S.recentFiles,
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600, color: cs.outline)),
             const SizedBox(height: 4),
@@ -160,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
-                  child: Text('아직 연 파일이 없어요.\n위에서 폴더를 열거나, 파일 앱에서 문서를 탭해 보세요.',
+                  child: Text(S.noRecent,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: cs.outline, height: 1.6)),
                 ),
@@ -191,8 +185,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     onTap: () async {
                       if (!File(e.path).existsSync()) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('파일이 삭제되었거나 이동했어요')));
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(S.fileGone)));
                         _refresh();
                         return;
                       }
