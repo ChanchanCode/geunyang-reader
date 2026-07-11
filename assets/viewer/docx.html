@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
 <link rel="stylesheet" href="css/doc.css">
+<link rel="stylesheet" href="css/serif.css">
 <style>
 body { padding: 10px 0 40px; }
 #content .docx-wrapper { background: transparent; padding: 0; }
@@ -30,12 +31,18 @@ async function main() {
     ignoreLastRenderedPageBreak: true,
     experimental: true,
   });
-  // 페이지가 화면보다 넓으면 폭에 맞게 축소 (핀치 줌으로 다시 확대 가능)
+  // Symbol/Wingdings 글머리표는 안드로이드에 폰트가 없어 □로 깨진다 → 일반 불릿으로 교체
+  el.querySelectorAll('span, p').forEach(s => {
+    const ff = (s.style.fontFamily || '').toLowerCase();
+    if ((ff.includes('symbol') || ff.includes('wingdings')) && s.textContent.trim().length <= 2) {
+      s.textContent = '•';
+      s.style.fontFamily = '';
+    }
+  });
+  fixFontFamilies(el);
+  // 페이지 폭에 맞게 자동 축소 (핀치 줌으로 다시 확대 가능)
   const page = el.querySelector('section.docx');
-  if (page) {
-    const w = page.offsetWidth;
-    if (w > window.innerWidth) el.style.zoom = String(window.innerWidth / (w + 16));
-  }
+  if (page) fitPageWidth(page.offsetWidth + 16);
   hideLoading();
 }
 main().catch(showError);

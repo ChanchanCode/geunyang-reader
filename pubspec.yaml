@@ -29,6 +29,7 @@ flutter:
     - assets/viewer/
     - assets/viewer/css/
     - assets/viewer/fonts/
+    - assets/viewer/fonts/serif/
     - assets/viewer/js/
     - assets/viewer/pdfjs/
     - assets/viewer/pdfjs/build/

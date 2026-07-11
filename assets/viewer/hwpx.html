@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
 <link rel="stylesheet" href="css/doc.css">
+<link rel="stylesheet" href="css/serif.css">
 <style>
+/* 한글 기본 서체는 함초롬바탕(세리프) */
+.flow { font-family: 'Noto Serif KR', serif; }
 .flow .p { margin: 0 0 4px; min-height: 1em; }
 .flow table { border-collapse: collapse; margin: 8px 0; max-width: 100%; }
 .flow td { border: 1px solid #b7bcc4; padding: 4px 8px; vertical-align: top; }
@@ -21,7 +24,7 @@
 <script>
 // hwpx(OWPML) 최소 변환기: 문단/글자모양/표/이미지/수식 텍스트를 HTML로.
 // 네임스페이스 접두어가 파일마다 달라 localName으로만 매칭한다.
-let zip, binMap = {}, charPrMap = {}, paraPrMap = {};
+let zip, binMap = {}, charPrMap = {}, paraPrMap = {}, fontMap = {};
 
 function kids(el, name) {
   return Array.from(el.children).filter(c => c.localName === name);
@@ -31,6 +34,12 @@ function findDesc(el, name) {
 }
 
 function parseHeader(doc) {
+  // 글꼴 목록: font id → 이름 (fontface들 중 한글 언어권 우선이지만 id는 전역적으로 유일)
+  Array.from(doc.getElementsByTagName('*')).forEach(el => {
+    if (el.localName === 'font' && el.getAttribute('face')) {
+      fontMap[el.getAttribute('id')] = el.getAttribute('face');
+    }
+  });
   Array.from(doc.getElementsByTagName('*')).forEach(el => {
     if (el.localName === 'charPr') {
       const s = {};
@@ -43,6 +52,10 @@ function parseHeader(doc) {
         if (c.localName === 'italic') s.italic = true;
         if (c.localName === 'underline' && c.getAttribute('type') !== 'NONE') s.underline = true;
         if (c.localName === 'strikeout' && c.getAttribute('shape') !== 'NONE') s.strike = true;
+        if (c.localName === 'fontRef') {
+          const face = fontMap[c.getAttribute('hangul') || c.getAttribute('latin')];
+          if (face) s.fontFamily = koFontFamily(face) || `'${face}', 'Noto Serif KR', serif`;
+        }
       }
       charPrMap[el.getAttribute('id')] = s;
     }
@@ -62,6 +75,7 @@ function charStyle(id) {
   const s = charPrMap[id] || {};
   let css = '';
   if (s.fontSize) css += `font-size:${s.fontSize};`;
+  if (s.fontFamily) css += `font-family:${s.fontFamily};`;
   if (s.color) css += `color:${s.color};`;
   if (s.bold) css += 'font-weight:700;';
   if (s.italic) css += 'font-style:italic;';
@@ -101,6 +115,12 @@ async function renderRunChild(el, out) {
     }
     case 'tbl': {
       const table = document.createElement('table');
+      // 표 크기(hwpunit, 1/7200인치)를 CSS px로 — 셀 내용에 따른 들쭉날쭉함 방지
+      const sz = kids(el, 'sz')[0];
+      if (sz) {
+        const w = parseFloat(sz.getAttribute('width') || '0');
+        if (w > 0) table.style.width = 'min(100%, ' + (w / 7200 * 96) + 'px)';
+      }
       for (const tr of kids(el, 'tr')) {
         const trEl = document.createElement('tr');
         for (const tc of kids(tr, 'tc')) {
@@ -171,7 +191,14 @@ async function renderP(p) {
     const css = charStyle(run.getAttribute('charPrIDRef'));
     for (const child of Array.from(run.children)) {
       const node = await renderRunChild(child, div);
-      if (node && css && node.localName !== 'table') node.style.cssText += css;
+      if (!node) continue;
+      if (node.localName === 'table') {
+        // 문단 정렬에 맞춰 표 배치 (한글 문서 표는 가운데 배치가 흔함)
+        if (pr.align === 'center') { node.style.marginLeft = 'auto'; node.style.marginRight = 'auto'; }
+        else if (pr.align === 'right') { node.style.marginLeft = 'auto'; }
+      } else if (css) {
+        node.style.cssText += css;
+      }
     }
   }
   if (!div.childNodes.length) div.innerHTML = '&nbsp;';

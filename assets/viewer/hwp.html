@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
 <link rel="stylesheet" href="css/doc.css">
+<link rel="stylesheet" href="css/serif.css">
 <style>
-/* hwp.js 뷰어의 인쇄 버튼은 WebView에서 의미 없어 숨김 */
-.hwpjs-header-print { display: none !important; }
 html, body, #content { height: 100%; }
+/* 한글 기본 서체는 함초롬바탕(세리프) — 지정 폰트가 없을 때의 기본값도 세리프로 */
+#content { font-family: 'Noto Serif KR', serif; }
 </style>
 <script src="js/common.js"></script>
 <script src="js/hwp.bundle.js"></script>
@@ -17,19 +18,29 @@ html, body, #content { height: 100%; }
 <div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
 <div id="content"></div>
 <script>
+function fitZoom(el) {
+  // hwp.js는 페이지 폭을 in/pt 단위로 지정한다 → px로 환산해 최대 페이지 폭을 찾는다
+  const toPx = { px: 1, pt: 96 / 72, in: 96, mm: 96 / 25.4, cm: 96 / 2.54 };
+  let w = 0;
+  el.querySelectorAll('div').forEach(d => {
+    const m = /^([\d.]+)(px|pt|in|mm|cm)$/.exec(d.style.width || '');
+    if (!m) return;
+    const px = parseFloat(m[1]) * toPx[m[2]];
+    if (px > w && px < 3000) w = px;
+  });
+  fitPageWidth(w + 16);
+}
+
 async function main() {
   const buf = await fetchDocBuffer();
   const el = document.getElementById('content');
   new HWP.Viewer(el, new Uint8Array(buf), { type: 'array' });
-  // 페이지가 화면보다 넓으면 폭에 맞게 축소
+  // 첫 번째 헤더 컨트롤(인쇄)은 WebView에서 의미 없어 숨김
+  const print = el.querySelector('.hwpjs-header-control');
+  if (print) print.style.display = 'none';
   requestAnimationFrame(() => {
-    const page = el.querySelector('[class*="hwpjs"] > div, .hwpjs-observer');
-    let w = 0;
-    el.querySelectorAll('div').forEach(d => {
-      const px = parseFloat(d.style.width || '0');
-      if (px > w && px < 3000) w = px;
-    });
-    if (w > window.innerWidth) document.body.style.zoom = String(window.innerWidth / (w + 12));
+    fixFontFamilies(el);
+    fitZoom(el);
     hideLoading();
   });
 }

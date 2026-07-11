@@ -80,25 +80,80 @@ function applyReaderPrefs(el) {
   el.style.lineHeight = LH;
 }
 
+// 한글 폰트명 → 번들 폰트 계열 분류.
+// 기기에 없는 문서 폰트를 세리프(명조)냐 고딕이냐만 맞춰도 인상이 크게 달라진다.
+const SERIF_RE = /바탕|batang|명조|myeongjo|myungjo|serif|궁서|gungsuh|kopub\s*바탕|ridi/i;
+const SANS_RE = /고딕|gothic|굴림|gulim|돋움|dotum|맑은|malgun|헤드라인|나눔스퀘어|수원|평창|해솔|apple\s*sd|산스|sans/i;
+function koFontFamily(name) {
+  if (!name) return null;
+  const n = String(name).replace(/["']/g, '').trim();
+  if (!n || /pretendard|noto/i.test(n)) return null;
+  // 기기(또는 문서 임베드)에서 실제로 그릴 수 있으면 그대로 둔다
+  try { if (document.fonts && document.fonts.check(`12px "${n}"`)) return null; } catch (e) {}
+  if (SERIF_RE.test(n)) return "'Noto Serif KR', serif";
+  if (SANS_RE.test(n)) return "'Pretendard', sans-serif";
+  if (/[가-힣]/.test(n)) return "'Pretendard', sans-serif"; // 미지의 한글 폰트명은 고딕으로
+  return null; // 라틴 폰트명은 브라우저 폴백에 맡김
+}
+
+// 고정 폭 문서(docx·hwp)를 화면에 맞추기: viewport 폭을 문서 폭으로 지정하면
+// WebView가 자동으로 축소해서 보여주고 핀치 줌도 그대로 살아 있다 (CSS zoom보다 호환성 좋음)
+function fitPageWidth(wPx) {
+  const mv = document.querySelector('meta[name="viewport"]');
+  if (!mv || !wPx) return;
+  mv.setAttribute('content',
+    'width=' + Math.ceil(wPx) + ', user-scalable=yes, minimum-scale=0.1, maximum-scale=8');
+}
+
+// 렌더 결과물에서 인라인 font-family를 번들 폰트로 교정 — hwp·docx용
+function fixFontFamilies(root) {
+  root.querySelectorAll('[style*="font-family"]').forEach(el => {
+    const fam = el.style.fontFamily;
+    const first = (fam || '').split(',')[0];
+    const mapped = koFontFamily(first);
+    if (mapped) el.style.fontFamily = mapped;
+  });
+}
+
 // 스와이프 페이지 모드: 본문을 가로 컬럼으로 잘라 한 장씩 넘긴다 — md·txt용.
 // 컬럼 폭 + 간격 = 컨테이너 폭이 되도록 CSS(doc.css .paged)와 맞물려 동작.
+// 스냅은 JS 스크롤 이벤트 대신 네이티브 CSS scroll-snap(페이지 위치마다 마커 요소)로 처리
+// — 프로그램적 스크롤에 scroll 이벤트를 안 주는 WebView가 있어서다.
 function setupPageMode(container) {
   if (PM !== 'page') return;
   document.body.classList.add('paged');
+  container.style.position = 'relative';
+  container.style.scrollSnapType = 'x mandatory';
 
   const posKey = 'pos:' + DOC_URL;
-  let snapTimer;
-  container.addEventListener('scroll', () => {
-    clearTimeout(snapTimer);
-    snapTimer = setTimeout(() => {
-      const w = container.clientWidth;
-      const target = Math.round(container.scrollLeft / w) * w;
-      if (Math.abs(container.scrollLeft - target) > 1) {
-        container.scrollTo({ left: target, behavior: 'smooth' });
-      }
-      try { localStorage.setItem(posKey, String(target)); } catch (e) {}
-    }, 90);
+  const save = () => {
+    try { localStorage.setItem(posKey, String(container.scrollLeft)); } catch (e) {}
+  };
+
+  function placeMarkers() {
+    container.querySelectorAll('.page-marker').forEach(m => m.remove());
+    const step = container.clientWidth;
+    if (!step) return;
+    const pages = Math.max(1, Math.ceil(container.scrollWidth / step));
+    for (let i = 0; i < pages; i++) {
+      const m = document.createElement('div');
+      m.className = 'page-marker';
+      m.style.cssText = 'position:absolute;top:0;left:' + (i * step) +
+        'px;width:1px;height:1px;scroll-snap-align:start;visibility:hidden;';
+      container.appendChild(m);
+    }
+  }
+
+  requestAnimationFrame(() => {
+    placeMarkers();
+    try {
+      const saved = parseFloat(localStorage.getItem(posKey) || '0');
+      if (saved > 0) container.scrollLeft = saved;
+    } catch (e) {}
   });
+  window.addEventListener('resize', placeMarkers);
+  window.addEventListener('pagehide', save);
+  document.addEventListener('visibilitychange', save);
 
   // 좌우 가장자리 탭으로도 넘김 (링크·선택 중은 제외)
   container.addEventListener('click', (ev) => {
@@ -109,10 +164,6 @@ function setupPageMode(container) {
     const x = ev.clientX;
     if (x > w * 0.8) container.scrollBy({ left: w, behavior: 'smooth' });
     else if (x < w * 0.2) container.scrollBy({ left: -w, behavior: 'smooth' });
+    setTimeout(save, 600);
   });
-
-  try {
-    const saved = parseFloat(localStorage.getItem(posKey) || '0');
-    if (saved > 0) requestAnimationFrame(() => { container.scrollLeft = saved; });
-  } catch (e) {}
 }

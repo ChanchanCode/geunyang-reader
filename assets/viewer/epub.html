@@ -11,7 +11,7 @@ html, body { height: 100%; overflow: hidden; background: var(--paper); }
   display: flex; align-items: center; gap: 8px; padding: 0 10px;
   background: var(--bg); border-bottom: 1px solid var(--border); box-sizing: border-box;
 }
-#toc { flex: 1; min-width: 0; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--paper); font-family: inherit; font-size: 13px; }
+#toc { flex: 1; min-width: 0; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--paper); color: var(--fg); font-family: inherit; font-size: 13px; }
 #bar button {
   flex: 0 0 auto; width: 44px; height: 32px; border: 1px solid var(--border);
   border-radius: 8px; background: var(--paper); font-size: 15px; color: var(--fg);
@@ -35,10 +35,12 @@ html, body { height: 100%; overflow: hidden; background: var(--paper); }
 async function main() {
   const buf = await fetchDocBuffer();
   const book = ePub(buf);
+  window.book = book; // 디버깅용
   const paged = PM === 'page';
   const rendition = paged
     ? book.renderTo('content', { flow: 'paginated', width: '100%', height: '100%', snap: true })
     : book.renderTo('content', { flow: 'scrolled-doc', width: '100%', fullsize: true });
+  window.rendition = rendition;
 
   rendition.themes.register('dark', {
     body: { background: '#0f1114 !important', color: '#e4e6ea !important' },
@@ -50,7 +52,13 @@ async function main() {
   }
   rendition.themes.fontSize(FS + 'px');
 
-  await rendition.display();
+  // display() 프라미스가 환경에 따라 안 풀리는 경우가 있어 rendered 이벤트/타임아웃과 레이스
+  const displayed = rendition.display();
+  await Promise.race([
+    displayed,
+    new Promise(res => rendition.on('rendered', res)),
+    new Promise(res => setTimeout(res, 4000)),
+  ]);
 
   if (paged) {
     // 본문(iframe) 위 스와이프로 페이지 넘김
@@ -62,24 +70,27 @@ async function main() {
       else if (dx > 50) rendition.prev();
     });
   }
-  await book.loaded.navigation.then(nav => {
-    const sel = document.getElementById('toc');
-    const flat = [];
-    (function walk(items, depth) {
-      items.forEach(it => { flat.push([it, depth]); if (it.subitems) walk(it.subitems, depth + 1); });
-    })(nav.toc, 0);
-    flat.forEach(([it, depth]) => {
-      const o = document.createElement('option');
-      o.value = it.href;
-      o.textContent = ' '.repeat(depth * 2) + it.label.trim();
-      sel.appendChild(o);
-    });
-    sel.onchange = () => rendition.display(sel.value);
-  });
+
   document.getElementById('prev').onclick = () => rendition.prev();
   document.getElementById('next').onclick = () => rendition.next();
   document.getElementById('bar').style.display = 'flex';
   hideLoading();
+
+  // 목차는 본문 표시를 막지 않게 비동기로 채운다
+  book.loaded.navigation.then(nav => {
+    const sel = document.getElementById('toc');
+    const flat = [];
+    (function walk(items, depth) {
+      items.forEach(it => { flat.push([it, depth]); if (it.subitems) walk(it.subitems, depth + 1); });
+    })(nav.toc || [], 0);
+    flat.forEach(([it, depth]) => {
+      const o = document.createElement('option');
+      o.value = it.href;
+      o.textContent = ' '.repeat(depth * 2) + (it.label || '').trim();
+      sel.appendChild(o);
+    });
+    sel.onchange = () => rendition.display(sel.value);
+  }).catch(() => {});
 }
 main().catch(showError);
 </script>
