@@ -4,10 +4,16 @@
 
 **지원 포맷**: pdf · docx · hwp · hwpx · html · md · txt · xlsx · xls · csv · epub
 
-- 스크롤, 핀치 줌, 텍스트 선택·복사
+- 스크롤, 핀치 줌, 텍스트 선택·복사, 문서 내 검색, 읽던 위치 기억
 - html은 인터랙션 포함 그대로 렌더링
 - 파일 앱에서 문서를 탭하면 바로 열림 ("연결 프로그램")
+- 설정: 한국어/English, 라이트/다크 테마, md·txt 글자 크기·줄 간격, 스크롤/스와이프 페이지 모드
 - GitHub Releases 기반 인앱 자동 업데이트
+
+## 설치
+
+[Releases](https://github.com/ChanchanCode/geunyang-reader/releases/latest)에서 APK를 받아 설치한다.
+설치 시 "출처를 알 수 없는 앱" 허용이 한 번 필요하다. 이후 새 버전이 나오면 앱이 알려준다.
 
 ## 구조
 
