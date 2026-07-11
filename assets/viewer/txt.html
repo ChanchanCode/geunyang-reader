@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+#content pre {
+  margin: 0; font-family: inherit; font-size: 15.5px; line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word;
+}
+</style>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="content" class="flow"><pre></pre></div>
+<script>
+async function main() {
+  const buf = await fetchDocBuffer();
+  document.querySelector('#content pre').textContent = decodeText(buf);
+  hideLoading();
+}
+main().catch(showError);
+</script>
+</body>
+</html>

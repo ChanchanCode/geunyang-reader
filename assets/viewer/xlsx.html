@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+body { background: var(--paper); }
+#tabs {
+  position: sticky; top: 0; z-index: 10; display: flex; gap: 6px;
+  overflow-x: auto; padding: 8px 10px; background: var(--bg);
+  border-bottom: 1px solid var(--border); -webkit-overflow-scrolling: touch;
+}
+#tabs button {
+  flex: 0 0 auto; border: 1px solid var(--border); background: var(--paper);
+  border-radius: 16px; padding: 5px 14px; font-size: 13px; color: var(--fg);
+  font-family: inherit;
+}
+#tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+#sheet { overflow-x: auto; padding: 10px; }
+#sheet table { border-collapse: collapse; font-size: 13.5px; }
+#sheet td { border: 1px solid var(--border); padding: 4px 8px; white-space: nowrap; min-width: 40px; }
+</style>
+<script src="js/common.js"></script>
+<script src="js/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="tabs" style="display:none"></div>
+<div id="sheet"></div>
+<script>
+let wb = null;
+function showSheet(i) {
+  const name = wb.SheetNames[i];
+  document.getElementById('sheet').innerHTML =
+    XLSX.utils.sheet_to_html(wb.Sheets[name], { header: '', footer: '' });
+  document.querySelectorAll('#tabs button').forEach((b, j) => b.classList.toggle('on', i === j));
+}
+async function main() {
+  const buf = await fetchDocBuffer();
+  wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  const tabs = document.getElementById('tabs');
+  if (wb.SheetNames.length > 1) {
+    tabs.style.display = 'flex';
+    wb.SheetNames.forEach((n, i) => {
+      const b = document.createElement('button');
+      b.textContent = n;
+      b.onclick = () => showSheet(i);
+      tabs.appendChild(b);
+    });
+  }
+  showSheet(0);
+  hideLoading();
+}
+main().catch(showError);
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'home_screen.dart';
+import 'recents.dart';
+import 'server.dart';
+import 'viewer_screen.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
+const _channel = MethodChannel('geunyang/native');
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LocalServer.start();
+  runApp(const GeunyangApp());
+}
+
+/// 파일을 뷰어로 연다. 어디서 호출하든 최근 목록에도 기록.
+Future<void> openFile(BuildContext? context, String path) async {
+  await Recents.add(path);
+  final nav = navigatorKey.currentState;
+  if (nav == null) return;
+  nav.push(MaterialPageRoute(builder: (_) => ViewerScreen(filePath: path)));
+}
+
+class GeunyangApp extends StatefulWidget {
+  const GeunyangApp({super.key});
+
+  @override
+  State<GeunyangApp> createState() => _GeunyangAppState();
+}
+
+class _GeunyangAppState extends State<GeunyangApp> {
+  @override
+  void initState() {
+    super.initState();
+    // 다른 앱에서 "연결 프로그램 → 그냥 리더"로 넘어온 파일 처리
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'openFile') {
+        final path = call.arguments as String?;
+        if (path != null) openFile(null, path);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final path = await _channel.invokeMethod<String>('getInitialFile');
+      if (path != null) openFile(null, path);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const seed = Color(0xFF3B6EF5);
+    return MaterialApp(
+      title: '그냥 리더',
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: seed),
+        appBarTheme: const AppBarTheme(centerTitle: false),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+        appBarTheme: const AppBarTheme(centerTitle: false),
+      ),
+      themeMode: ThemeMode.system,
+      home: const HomeScreen(),
+    );
+  }
+}

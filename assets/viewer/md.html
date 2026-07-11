@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+.flow h1, .flow h2 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.flow h1 { font-size: 1.7em; } .flow h2 { font-size: 1.4em; } .flow h3 { font-size: 1.2em; }
+.flow img { max-width: 100%; height: auto; }
+.flow pre { background: #f6f8fa; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13.5px; }
+.flow code { font-family: ui-monospace, Menlo, monospace; background: #f0f1f3; border-radius: 4px; padding: 1px 5px; font-size: 0.9em; }
+.flow pre code { background: none; padding: 0; }
+.flow blockquote { margin: 0 0 16px; padding: 0 1em; color: var(--muted); border-left: 4px solid var(--border); }
+.flow table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.flow th, .flow td { border: 1px solid var(--border); padding: 6px 12px; }
+.flow th { background: #f6f8fa; }
+.flow a { color: var(--accent); }
+.flow hr { border: none; border-top: 1px solid var(--border); }
+</style>
+<script src="js/common.js"></script>
+<script src="js/markdown-it.min.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<article id="content" class="flow"></article>
+<script>
+async function main() {
+  const buf = await fetchDocBuffer();
+  const text = decodeText(buf);
+  const md = window.markdownit({ html: true, linkify: true, breaks: false });
+  const el = document.getElementById('content');
+  el.innerHTML = md.render(text);
+  // 문서 기준 상대 경로 이미지/링크를 서버 URL로 교정
+  el.querySelectorAll('img').forEach(img => { img.src = resolveRelative(img.getAttribute('src') || ''); });
+  el.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (!/^(https?:|#|mailto:)/.test(href)) a.href = resolveRelative(href);
+  });
+  hideLoading();
+}
+main().catch(showError);
+</script>
+</body>
+</html>

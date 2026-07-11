@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+html, body { height: 100%; overflow: hidden; background: var(--paper); }
+#bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 10;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  background: var(--bg); border-bottom: 1px solid var(--border); box-sizing: border-box;
+}
+#toc { flex: 1; min-width: 0; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--paper); font-family: inherit; font-size: 13px; }
+#bar button {
+  flex: 0 0 auto; width: 44px; height: 32px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--paper); font-size: 15px; color: var(--fg);
+}
+#content { position: absolute; top: 44px; bottom: 0; left: 0; right: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+</style>
+<script src="js/common.js"></script>
+<script src="js/jszip.min.js"></script>
+<script src="js/epub.min.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="bar" style="display:none">
+  <button id="prev">‹</button>
+  <select id="toc"></select>
+  <button id="next">›</button>
+</div>
+<div id="content"></div>
+<script>
+async function main() {
+  const buf = await fetchDocBuffer();
+  const book = ePub(buf);
+  const rendition = book.renderTo('content', {
+    flow: 'scrolled-doc', width: '100%', fullsize: true,
+  });
+  await rendition.display();
+  await book.loaded.navigation.then(nav => {
+    const sel = document.getElementById('toc');
+    const flat = [];
+    (function walk(items, depth) {
+      items.forEach(it => { flat.push([it, depth]); if (it.subitems) walk(it.subitems, depth + 1); });
+    })(nav.toc, 0);
+    flat.forEach(([it, depth]) => {
+      const o = document.createElement('option');
+      o.value = it.href;
+      o.textContent = ' '.repeat(depth * 2) + it.label.trim();
+      sel.appendChild(o);
+    });
+    sel.onchange = () => rendition.display(sel.value);
+  });
+  document.getElementById('prev').onclick = () => rendition.prev();
+  document.getElementById('next').onclick = () => rendition.next();
+  document.getElementById('bar').style.display = 'flex';
+  hideLoading();
+}
+main().catch(showError);
+</script>
+</body>
+</html>

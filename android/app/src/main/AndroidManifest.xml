@@ -1,0 +1,108 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- 로컬 문서 서버(127.0.0.1)와 업데이트 확인용 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 인앱 파일 탐색기용. Play 스토어 출시 시에는 SAF 방식으로 교체 검토 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <!-- 인앱 업데이트(APK 설치)용 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <application
+        android:label="그냥 리더"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- MIME 타입 기반: 콘텐츠 제공자(파일 앱, 카톡 등)에서 열기 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/pdf"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
+                <data android:mimeType="application/haansofthwp"/>
+                <data android:mimeType="application/x-hwp"/>
+                <data android:mimeType="application/vnd.hancom.hwp"/>
+                <data android:mimeType="application/haansofthwpx"/>
+                <data android:mimeType="application/vnd.hancom.hwpx"/>
+                <data android:mimeType="text/html"/>
+                <data android:mimeType="text/plain"/>
+                <data android:mimeType="text/markdown"/>
+                <data android:mimeType="text/x-markdown"/>
+                <data android:mimeType="text/csv"/>
+                <data android:mimeType="text/comma-separated-values"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                <data android:mimeType="application/vnd.ms-excel"/>
+                <data android:mimeType="application/epub+zip"/>
+            </intent-filter>
+
+            <!-- 확장자 기반: MIME을 모르는 앱이 file:// 로 여는 경우 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="file" android:host="*"/>
+                <data android:pathPattern=".*\\.pdf"/>
+                <data android:pathPattern=".*\\.docx"/>
+                <data android:pathPattern=".*\\.hwp"/>
+                <data android:pathPattern=".*\\.hwpx"/>
+                <data android:pathPattern=".*\\.html"/>
+                <data android:pathPattern=".*\\.htm"/>
+                <data android:pathPattern=".*\\.md"/>
+                <data android:pathPattern=".*\\.markdown"/>
+                <data android:pathPattern=".*\\.txt"/>
+                <data android:pathPattern=".*\\.log"/>
+                <data android:pathPattern=".*\\.xlsx"/>
+                <data android:pathPattern=".*\\.xls"/>
+                <data android:pathPattern=".*\\.csv"/>
+                <data android:pathPattern=".*\\.epub"/>
+            </intent-filter>
+
+            <!-- hwp를 octet-stream으로 보내는 앱 대응 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content" android:mimeType="application/octet-stream"/>
+            </intent-filter>
+        </activity>
+
+        <!-- 인앱 업데이트: 받은 APK를 설치 프롬프트로 넘기기 위한 provider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

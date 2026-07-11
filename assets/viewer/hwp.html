@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+/* hwp.js 뷰어의 인쇄 버튼은 WebView에서 의미 없어 숨김 */
+.hwpjs-header-print { display: none !important; }
+html, body, #content { height: 100%; }
+</style>
+<script src="js/common.js"></script>
+<script src="js/hwp.bundle.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="content"></div>
+<script>
+async function main() {
+  const buf = await fetchDocBuffer();
+  const el = document.getElementById('content');
+  new HWP.Viewer(el, new Uint8Array(buf), { type: 'array' });
+  // 페이지가 화면보다 넓으면 폭에 맞게 축소
+  requestAnimationFrame(() => {
+    const page = el.querySelector('[class*="hwpjs"] > div, .hwpjs-observer');
+    let w = 0;
+    el.querySelectorAll('div').forEach(d => {
+      const px = parseFloat(d.style.width || '0');
+      if (px > w && px < 3000) w = px;
+    });
+    if (w > window.innerWidth) document.body.style.zoom = String(window.innerWidth / (w + 12));
+    hideLoading();
+  });
+}
+main().catch(showError);
+</script>
+</body>
+</html>
