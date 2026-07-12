@@ -1,3 +1,25 @@
+[2026-07-12 11:45] hwp 렌더러 rhwp 교체 — v0.2.0
+
+한 일:
+- 사용자가 한글 뷰어 원본과 비교해 폰트·자간·표폭·글자색 불일치, 텍스트 페이지 이탈 지적 → hwp.js와 자체 hwpx 변환기를 rhwp @0.7.18(Rust+WASM, MIT)로 통합 교체
+- assets/viewer/hwp.html 재작성: measureTextWidth 캔버스 콜백 등록 → init → HwpDocument → 페이지별 renderPageSvg, 프레임 양보 순차 렌더, 페이지 표시기
+- hwpx.html 삭제, formats.dart에서 hwp·hwpx 둘 다 hwp.html로 라우팅
+- 검증: noori.hwp 한글 원본 스크린샷 대조(볼드 런·빨간 글씨·표폭·줄바꿈 위치 일치), rhwp exportHwpx 라운드트립으로 만든 진짜 hwpx 픽스처, 에뮬레이터 실기동
+- v0.2.0 릴리스 (arm64 33MB)
+
+결정과 이유:
+- rhwp 선택: 사용자가 링크한 golbin/hop의 하부 엔진. HWP5+HWPX 모두, 수식·다단·머리말 커버, WASM 3MB(실제 6.6MB), 활발한 개발(v0.7.18이 이틀 전). hwp.js는 2021년 수준에서 중단
+- measureTextWidth를 브라우저 캔버스로 위임하는 rhwp 설계 덕에 "측정 폰트 = 렌더 폰트"가 보장돼 폰트 부재 시에도 넘침이 없음 — 이전 접근(폰트 별칭 + 고정 레이아웃)의 근본 문제 해소
+
+인사이트:
+- 내 합성 hwpx 픽스처는 rhwp가 빈 문서로 파싱 (필수 파트 누락) — 포맷 픽스처는 실물 또는 공식 도구 산출물로 만들 것. rhwp exportHwpx()가 픽스처 생성기로 유용
+- wasm-bindgen web 타깃도 node에서 initSync(BufferSource)로 돌릴 수 있음 (브라우저 API 안 쓰는 경로 한정) — CLI 변환에 활용
+- 교훈: 도메인 포맷 렌더러는 구현 착수 전에 최신 오픈소스 서베이부터. hwp.js가 유명하다고 그대로 쓴 게 하루치 재작업이 됨
+
+막힌 점 / 다음:
+- 실기기에서 다양한 실제 hwp/hwpx(수식·차트 포함) 추가 검증
+- 브라우저 페인 캐시 때문에 뷰어 페이지 수정 후 반드시 캐시버스터로 확인할 것
+
 [2026-07-12 04:20] 그냥 리더 v0.1.0 개발·출시 (첫 세션)
 
 한 일:
