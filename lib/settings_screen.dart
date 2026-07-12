@@ -39,7 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(S.settings)),
-      body: ListView(
+      body: SafeArea(
+        top: false,
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           _sectionTitle(S.general),
@@ -146,6 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('v$_version'),
           ),
         ],
+        ),
       ),
     );
   }

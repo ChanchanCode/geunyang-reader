@@ -11,6 +11,7 @@ import 'prefs.dart';
 import 'recents.dart';
 import 'settings_screen.dart';
 import 'strings.dart';
+import 'thumbs.dart';
 import 'updater.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<RecentEntry> _recents = [];
+  List<File> _recentDownloads = [];
   bool _hasStorage = true;
 
   @override
@@ -57,11 +59,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final granted =
         !Platform.isAndroid || await Permission.manageExternalStorage.isGranted;
     final recents = await Recents.load();
+    final downloads = granted ? await _loadRecentDownloads() : <File>[];
     if (!mounted) return;
     setState(() {
       _hasStorage = granted;
       _recents = recents;
+      _recentDownloads = downloads;
     });
+  }
+
+  /// 다운로드 폴더(iOS는 앱 문서)에서 최근 수정된 지원 문서 5개
+  Future<List<File>> _loadRecentDownloads() async {
+    try {
+      final dir = Platform.isAndroid
+          ? Directory('/storage/emulated/0/Download')
+          : await getApplicationDocumentsDirectory();
+      final files = <File>[];
+      await for (final e in Directory(dir.path).list(followLinks: false)) {
+        if (e is File && Formats.isSupported(e.path)) files.add(e);
+      }
+      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      return files.take(5).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _requestStorage() async {
@@ -113,7 +134,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -172,6 +195,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ],
             ),
+            if (_recentDownloads.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(S.recentDownloads,
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: cs.outline)),
+              const SizedBox(height: 4),
+              for (final f in _recentDownloads)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: DocThumb(path: f.path),
+                  title: Text(f.path.split('/').last,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    _mtimeText(f),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () async {
+                    await openFile(context, f.path);
+                    _refresh();
+                  },
+                ),
+            ],
             const SizedBox(height: 24),
             Text(S.recentFiles,
                 style: TextStyle(
@@ -202,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Formats.icon(e.path)),
+                    leading: DocThumb(path: e.path),
                     title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(
                       e.path.replaceFirst('/storage/emulated/0/', ''),
@@ -224,8 +269,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
           ],
         ),
+        ),
       ),
     );
+  }
+
+  String _mtimeText(File f) {
+    try {
+      final m = f.statSync().modified;
+      final now = DateTime.now();
+      final diff = now.difference(m);
+      if (diff.inMinutes < 60) return S.ko ? '${diff.inMinutes}분 전' : '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return S.ko ? '${diff.inHours}시간 전' : '${diff.inHours}h ago';
+      if (diff.inDays < 7) return S.ko ? '${diff.inDays}일 전' : '${diff.inDays}d ago';
+      return '${m.year}.${m.month.toString().padLeft(2, '0')}.${m.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
   }
 }
 

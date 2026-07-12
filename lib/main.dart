@@ -6,6 +6,7 @@ import 'prefs.dart';
 import 'recents.dart';
 import 'server.dart';
 import 'strings.dart';
+import 'thumbs.dart';
 import 'viewer_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -14,6 +15,7 @@ const _channel = MethodChannel('geunyang/native');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Prefs.init();
+  await Thumbs.init();
   await LocalServer.start();
   runApp(const GeunyangApp());
 }

@@ -17,7 +17,10 @@ class S {
   static String get download => ko ? '다운로드' : 'Downloads';
   static String get documents => ko ? '문서' : 'Documents';
   static String get allStorage => ko ? '전체' : 'All files';
-  static String get recentFiles => ko ? '최근 파일' : 'Recent files';
+  static String get recentFiles => ko ? '최근 연 파일' : 'Recently opened';
+  static String get recentDownloads => ko ? '최근 받은 파일' : 'Recently added';
+  static String get all => ko ? '전체' : 'All';
+  static String get searchingFiles => ko ? '모으는 중…' : 'Collecting…';
   static String get noRecent => ko
       ? '아직 연 파일이 없어요.\n위에서 폴더를 열거나, 파일 앱에서 문서를 탭해 보세요.'
       : 'Nothing opened yet.\nBrowse a folder above, or tap a document in your Files app.';

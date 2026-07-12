@@ -11,6 +11,7 @@ import 'formats.dart';
 import 'prefs.dart';
 import 'server.dart';
 import 'strings.dart';
+import 'thumbs.dart';
 
 const _channel = MethodChannel('geunyang/native');
 
@@ -45,6 +46,64 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// pdf는 pdf.js가, epub은 스크롤 구조가 달라 자체 처리 — 나머지만 위치 기억
   bool get _remembersPosition =>
       !const {'pdf', 'epub'}.contains(Formats.ext(widget.filePath));
+
+  /// 뷰어 래퍼 없이 원본 그대로 여는 포맷 (html)
+  bool get _isRawHtml =>
+      const {'html', 'htm'}.contains(Formats.ext(widget.filePath));
+
+  /// 모바일 대응이 안 된 HTML(뷰포트 없음/고정폭)은 좌우가 잘린다.
+  /// 1) 뷰포트를 실제 콘텐츠 폭에 맞추고 핀치 줌을 강제 허용 (iOS에서 유효)
+  /// 2) 고정폭 미디어는 화면 폭에 맞춤
+  /// 3) 그래도 넘치면 페이지 줌으로 축소 (안드로이드는 늦은 뷰포트 변경을 무시해서)
+  Future<void> _fitRawHtml(InAppWebViewController c) async {
+    await c.evaluateJavascript(source: '''(function () {
+      var dw = Math.min(screen.width, window.innerWidth) || screen.width;
+      var w = Math.max(document.documentElement.scrollWidth,
+                       document.body ? document.body.scrollWidth : 0);
+      var mv = document.querySelector('meta[name="viewport"]');
+      if (!mv) {
+        mv = document.createElement('meta');
+        mv.setAttribute('name', 'viewport');
+        (document.head || document.documentElement).appendChild(mv);
+      }
+      mv.setAttribute('content', (w > dw * 1.05)
+        ? 'width=' + w + ', user-scalable=yes, minimum-scale=0.05, maximum-scale=10'
+        : 'width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=10');
+      var st = document.createElement('style');
+      st.textContent = 'img, video, iframe { max-width: 100% !important; height: auto !important; }';
+      (document.head || document.documentElement).appendChild(st);
+    })();''');
+    if (Platform.isAndroid) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final ratio = await _web?.evaluateJavascript(
+          source:
+              'Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0)'
+              ' / Math.max(1, Math.min(screen.width, window.innerWidth))');
+      final r = (ratio is num) ? ratio.toDouble() : 1.0;
+      if (r > 1.05) {
+        try {
+          await _web?.zoomBy(zoomFactor: 1 / r, animated: false);
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// 문서가 그려진 뒤 스크린샷을 썸네일로 저장 (파일 목록에서 미리보기용)
+  Future<void> _captureThumb(InAppWebViewController c) async {
+    try {
+      final f = await Thumbs.fileFor(widget.filePath);
+      if (f.existsSync()) return;
+      await Future.delayed(const Duration(milliseconds: 2500));
+      if (!mounted) return;
+      final bytes = await c.takeScreenshot(
+        screenshotConfiguration: ScreenshotConfiguration(
+          compressFormat: CompressFormat.JPEG,
+          quality: 55,
+        ),
+      );
+      if (bytes != null && bytes.isNotEmpty) await f.writeAsBytes(bytes);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -165,7 +224,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     onPressed: _share),
               ],
       ),
-      body: InAppWebView(
+      body: SafeArea(
+        top: false,
+        child: InAppWebView(
         initialUrlRequest: URLRequest(url: WebUri(url)),
         findInteractionController: _find,
         initialSettings: InAppWebViewSettings(
@@ -185,7 +246,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
           transparentBackground: false,
         ),
         onWebViewCreated: (c) => _web = c,
-        onLoadStop: (c, u) => _restorePosition(),
+        onLoadStop: (c, u) async {
+          if (_isRawHtml) await _fitRawHtml(c);
+          _restorePosition();
+          _captureThumb(c);
+        },
         onScrollChanged: (c, x, y) {
           if (!_remembersPosition) return;
           _posSaver?.cancel();
@@ -203,6 +268,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           }
           return NavigationActionPolicy.CANCEL;
         },
+        ),
       ),
     );
   }
