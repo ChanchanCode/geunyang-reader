@@ -5,6 +5,7 @@ class Formats {
   static const Set<String> supported = {
     'pdf',
     'docx',
+    'pptx',
     'hwp', 'hwpx',
     'html', 'htm',
     'md', 'markdown',
@@ -56,6 +57,8 @@ class Formats {
         return page('txt.html');
       case 'docx':
         return page('docx.html');
+      case 'pptx':
+        return page('pptx.html');
       case 'hwp':
       case 'hwpx':
         // 둘 다 rhwp(WASM)가 렌더링한다
@@ -77,6 +80,8 @@ class Formats {
         return Icons.picture_as_pdf_outlined;
       case 'docx':
         return Icons.description_outlined;
+      case 'pptx':
+        return Icons.slideshow_outlined;
       case 'hwp':
       case 'hwpx':
         return Icons.article_outlined;
@@ -94,6 +99,62 @@ class Formats {
         return Icons.menu_book_outlined;
       default:
         return Icons.insert_drive_file_outlined;
+    }
+  }
+
+  /// 확장자별 저채도 배지 색 — 알록달록하지 않게, 편안한 톤으로
+  static Color color(String path) {
+    switch (ext(path)) {
+      case 'pdf':
+        return const Color(0xFFB56A5E); // 테라코타
+      case 'docx':
+        return const Color(0xFF6E86C0); // 뮤트 블루
+      case 'pptx':
+        return const Color(0xFFC08A5E); // 뮤트 오렌지
+      case 'hwp':
+      case 'hwpx':
+        return const Color(0xFF64949E); // 뮤트 청록
+      case 'xlsx':
+      case 'xls':
+      case 'csv':
+        return const Color(0xFF7BA57C); // 세이지
+      case 'epub':
+        return const Color(0xFF9C82AE); // 뮤트 퍼플
+      case 'html':
+      case 'htm':
+        return const Color(0xFFBFA05F); // 뮤트 앰버
+      default:
+        return const Color(0xFF8B8F98); // 그레이 (md, txt 등)
+    }
+  }
+
+  /// 배지에 쓰는 짧은 라벨
+  static String badge(String path) {
+    switch (ext(path)) {
+      case 'pdf':
+        return 'PDF';
+      case 'docx':
+        return 'DOC';
+      case 'pptx':
+        return 'PPT';
+      case 'hwp':
+      case 'hwpx':
+        return 'HWP';
+      case 'xlsx':
+      case 'xls':
+        return 'XLS';
+      case 'csv':
+        return 'CSV';
+      case 'epub':
+        return 'EPUB';
+      case 'md':
+      case 'markdown':
+        return 'MD';
+      case 'html':
+      case 'htm':
+        return 'HTML';
+      default:
+        return 'TXT';
     }
   }
 }

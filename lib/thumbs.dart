@@ -46,7 +46,36 @@ class Thumbs {
   static Future<void> init() => _ensureDir();
 }
 
-/// 파일 목록용 미리보기: 썸네일이 있으면 문서 첫 화면, 없으면 포맷 아이콘
+/// 확장자 배지: 저채도 바탕에 짧은 라벨
+class FormatBadge extends StatelessWidget {
+  const FormatBadge({super.key, required this.path});
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Formats.color(path);
+    return Container(
+      width: 40,
+      height: 50,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        Formats.badge(path),
+        style: TextStyle(
+          color: c,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+/// 파일 목록용 미리보기: 썸네일이 있으면 문서 첫 화면, 없으면 확장자 배지
 class DocThumb extends StatelessWidget {
   const DocThumb({super.key, required this.path});
   final String path;
@@ -54,7 +83,7 @@ class DocThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = Thumbs.existing(path);
-    if (f == null) return Icon(Formats.icon(path));
+    if (f == null) return FormatBadge(path: path);
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Image.file(
@@ -63,7 +92,8 @@ class DocThumb extends StatelessWidget {
         height: 50,
         fit: BoxFit.cover,
         alignment: Alignment.topCenter,
-        errorBuilder: (_, e, st) => Icon(Formats.icon(path)),
+        cacheWidth: 120, // 원본 스크린샷을 그대로 디코딩하면 목록 스크롤이 버벅인다
+        errorBuilder: (_, e, st) => FormatBadge(path: path),
       ),
     );
   }

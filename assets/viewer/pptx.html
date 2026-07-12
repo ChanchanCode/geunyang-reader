@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html data-force-light>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=8">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+body { padding: 10px 0 40px; }
+/* pptx-preview의 고정 크기·내부 스크롤을 풀고 페이지 스크롤로 흘린다 */
+#content .pptx-preview-wrapper {
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+#content .pptx-preview-slide-wrapper {
+  box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+  background: #fff;
+}
+</style>
+<script src="js/common.js"></script>
+<script src="js/pptx-preview.umd.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="content"></div>
+<script>
+async function main() {
+  const buf = await fetchDocBuffer();
+  const el = document.getElementById('content');
+  const vw = Math.min(screen.width, window.innerWidth) || 360;
+  const w = Math.min(vw - 8, 1200);
+  const previewer = pptxPreview.init(el, { width: w, height: Math.round(w * 9 / 16) });
+  await previewer.preview(buf);
+  hideLoading();
+}
+main().catch(showError);
+</script>
+</body>
+</html>

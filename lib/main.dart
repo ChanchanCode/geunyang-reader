@@ -56,24 +56,40 @@ class _GeunyangAppState extends State<GeunyangApp> {
     });
   }
 
+  ThemeData _theme(Brightness b) {
+    // 차분한 웜 그레이 팔레트 + 명조 타이틀
+    final cs = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF7D6F5E),
+      brightness: b,
+    );
+    return ThemeData(
+      colorScheme: cs,
+      scaffoldBackgroundColor:
+          b == Brightness.light ? const Color(0xFFF7F5F1) : null,
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        backgroundColor:
+            b == Brightness.light ? const Color(0xFFF7F5F1) : null,
+        titleTextStyle: TextStyle(
+          fontFamily: 'GowunBatang',
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: cs.onSurface,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF3B6EF5);
     return ListenableBuilder(
       listenable: Prefs.revision,
       builder: (context, child) => MaterialApp(
         title: S.appName,
         navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: seed),
-          appBarTheme: const AppBarTheme(centerTitle: false),
-        ),
-        darkTheme: ThemeData(
-          colorScheme:
-              ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
-          appBarTheme: const AppBarTheme(centerTitle: false),
-        ),
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
         themeMode: switch (Prefs.themeMode) {
           'light' => ThemeMode.light,
           'dark' => ThemeMode.dark,

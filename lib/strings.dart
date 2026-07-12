@@ -35,6 +35,10 @@ class S {
 
   // 탐색기
   static String get internalStorage => ko ? '내장 저장소' : 'Internal storage';
+  static String get sortName => ko ? '이름순' : 'Name';
+  static String get sortDate => ko ? '최신순' : 'Date';
+  static String get sortSize => ko ? '크기순' : 'Size';
+  static String get searchInFolder => ko ? '파일명 검색' : 'Search files';
   static String get cantAccess =>
       ko ? '이 폴더에 접근할 수 없어요' : 'Can\'t access this folder';
   static String get emptyFolder =>

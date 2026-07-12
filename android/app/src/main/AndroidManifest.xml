@@ -52,6 +52,7 @@
                 <data android:mimeType="text/comma-separated-values"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
                 <data android:mimeType="application/vnd.ms-excel"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation"/>
                 <data android:mimeType="application/epub+zip"/>
             </intent-filter>
 
@@ -62,6 +63,7 @@
                 <data android:scheme="file" android:host="*"/>
                 <data android:pathPattern=".*\\.pdf"/>
                 <data android:pathPattern=".*\\.docx"/>
+                <data android:pathPattern=".*\\.pptx"/>
                 <data android:pathPattern=".*\\.hwp"/>
                 <data android:pathPattern=".*\\.hwpx"/>
                 <data android:pathPattern=".*\\.html"/>
