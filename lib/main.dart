@@ -45,8 +45,12 @@ class _GeunyangAppState extends State<GeunyangApp> {
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final path = await _channel.invokeMethod<String>('getInitialFile');
-      if (path != null) openFile(null, path);
+      try {
+        final path = await _channel.invokeMethod<String>('getInitialFile');
+        if (path != null) openFile(null, path);
+      } on MissingPluginException {
+        // iOS: 네이티브 채널 미구현 — 파일 앱 연동은 추후
+      }
     });
   }
 

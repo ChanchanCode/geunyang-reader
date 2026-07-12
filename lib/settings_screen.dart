@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -125,11 +127,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) => setState(() => Prefs.keepScreenOn = v),
           ),
           _sectionTitle(S.about),
-          ListTile(
-            leading: const Icon(Icons.system_update_alt),
-            title: Text(S.checkUpdate),
-            onTap: () => Updater.check(context),
-          ),
+          if (Platform.isAndroid)
+            ListTile(
+              leading: const Icon(Icons.system_update_alt),
+              title: Text(S.checkUpdate),
+              onTap: () => Updater.check(context),
+            ),
           ListTile(
             leading: const Icon(Icons.code),
             title: Text(S.sourceCode),

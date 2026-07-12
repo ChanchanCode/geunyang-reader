@@ -20,8 +20,9 @@ class Updater {
   static bool get configured => !kGithubRepo.startsWith('OWNER');
 
   /// 하루 한 번 자동 확인. 새 버전이 있으면 다이얼로그를 띄운다.
+  /// APK 설치 방식이라 안드로이드 전용 (iOS는 TestFlight/App Store).
   static Future<void> autoCheck(BuildContext context) async {
-    if (!configured) return;
+    if (!Platform.isAndroid || !configured) return;
     final prefs = await SharedPreferences.getInstance();
     final last = prefs.getInt('last_update_check') ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;

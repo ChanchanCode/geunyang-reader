@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'browser_screen.dart';
@@ -52,7 +53,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _refresh() async {
-    final granted = await Permission.manageExternalStorage.isGranted;
+    // iOS는 앱 샌드박스(Documents)만 다뤄서 저장소 권한이 필요 없다
+    final granted =
+        !Platform.isAndroid || await Permission.manageExternalStorage.isGranted;
     final recents = await Recents.load();
     if (!mounted) return;
     setState(() {
@@ -74,6 +77,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => BrowserScreen(initialPath: path)),
+    ).then((_) => _refresh());
+  }
+
+  /// iOS: 앱 Documents 폴더 탐색 (파일 앱 → '나의 iPhone > 그냥 리더'와 같은 공간)
+  Future<void> _browseIosDocs() async {
+    final dir = await getApplicationDocumentsDirectory();
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BrowserScreen(
+          initialPath: dir.path,
+          rootPath: dir.path,
+          rootLabel: S.documents,
+        ),
+      ),
     ).then((_) => _refresh());
   }
 
@@ -125,25 +144,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             const SizedBox(height: 8),
             Row(
-              children: [
-                _QuickButton(
-                  icon: Icons.download_outlined,
-                  label: S.download,
-                  onTap: () => _browse('/storage/emulated/0/Download'),
-                ),
-                const SizedBox(width: 10),
-                _QuickButton(
-                  icon: Icons.description_outlined,
-                  label: S.documents,
-                  onTap: () => _browse('/storage/emulated/0/Documents'),
-                ),
-                const SizedBox(width: 10),
-                _QuickButton(
-                  icon: Icons.smartphone_outlined,
-                  label: S.allStorage,
-                  onTap: () => _browse('/storage/emulated/0'),
-                ),
-              ],
+              children: Platform.isAndroid
+                  ? [
+                      _QuickButton(
+                        icon: Icons.download_outlined,
+                        label: S.download,
+                        onTap: () => _browse('/storage/emulated/0/Download'),
+                      ),
+                      const SizedBox(width: 10),
+                      _QuickButton(
+                        icon: Icons.description_outlined,
+                        label: S.documents,
+                        onTap: () => _browse('/storage/emulated/0/Documents'),
+                      ),
+                      const SizedBox(width: 10),
+                      _QuickButton(
+                        icon: Icons.smartphone_outlined,
+                        label: S.allStorage,
+                        onTap: () => _browse('/storage/emulated/0'),
+                      ),
+                    ]
+                  : [
+                      _QuickButton(
+                        icon: Icons.description_outlined,
+                        label: S.documents,
+                        onTap: _browseIosDocs,
+                      ),
+                    ],
             ),
             const SizedBox(height: 24),
             Text(S.recentFiles,

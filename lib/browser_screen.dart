@@ -7,8 +7,15 @@ import 'main.dart' show openFile;
 import 'strings.dart';
 
 class BrowserScreen extends StatefulWidget {
-  const BrowserScreen({super.key, required this.initialPath});
+  const BrowserScreen({
+    super.key,
+    required this.initialPath,
+    this.rootPath = '/storage/emulated/0',
+    this.rootLabel,
+  });
   final String initialPath;
+  final String rootPath; // 이 위로는 못 올라간다 (iOS는 앱 Documents)
+  final String? rootLabel;
 
   @override
   State<BrowserScreen> createState() => _BrowserScreenState();
@@ -19,7 +26,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   List<FileSystemEntity> _entries = [];
   String? _error;
 
-  static const _root = '/storage/emulated/0';
+  String get _root => widget.rootPath;
 
   @override
   void initState() {
@@ -83,7 +90,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   Widget build(BuildContext context) {
     final rel = _path == _root
-        ? S.internalStorage
+        ? (widget.rootLabel ?? S.internalStorage)
         : _path.replaceFirst('$_root/', '');
     return PopScope(
       canPop: _atRoot,
