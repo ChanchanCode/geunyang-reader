@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -51,40 +52,80 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool get _isRawHtml =>
       const {'html', 'htm'}.contains(Formats.ext(widget.filePath));
 
+  double _htmlZoom = 1.0; // 안드로이드에서 현재 적용된 페이지 줌 (재계산용)
+
   /// 모바일 대응이 안 된 HTML(뷰포트 없음/고정폭)은 좌우가 잘린다.
-  /// 1) 뷰포트를 실제 콘텐츠 폭에 맞추고 핀치 줌을 강제 허용 (iOS에서 유효)
-  /// 2) 고정폭 미디어는 화면 폭에 맞춤
-  /// 3) 그래도 넘치면 페이지 줌으로 축소 (안드로이드는 늦은 뷰포트 변경을 무시해서)
+  /// 폭 계산은 scrollWidth(오른쪽 최대)만 보면 안 된다 — 가운데 정렬된 고정폭 블록은
+  /// 왼쪽(음수 좌표)으로 삐져나가고, 그 영역은 스크롤로 도달 불가.
+  /// 그래서 "전체 요소"의 bounding box로 좌우 경계를 재고, 왼쪽으로 나간 만큼
+  /// 본문을 밀어 넣은 뒤 전체 폭 기준으로 맞춘다. 지연 로드(이미지 등)로 폭이
+  /// 바뀔 수 있어 몇 차례 재계산한다.
   Future<void> _fitRawHtml(InAppWebViewController c) async {
-    await c.evaluateJavascript(source: '''(function () {
+    const measureJs = '''(function () {
+      if (!window.__gyStyle) {
+        window.__gyStyle = document.createElement('style');
+        __gyStyle.textContent =
+          'img, video, iframe { max-width: 100% !important; height: auto !important; }';
+        (document.head || document.documentElement).appendChild(__gyStyle);
+      }
+      var body = document.body, doc = document.documentElement;
+      if (!body) return JSON.stringify({ w: 0, dw: 1 });
+      body.style.marginLeft = '';
+      var sx = window.scrollX;
+      var minL = 0;
+      var maxR = Math.max(doc.scrollWidth, body.scrollWidth);
+      var els = body.getElementsByTagName('*');
+      for (var i = 0; i < els.length; i++) {
+        var r = els[i].getBoundingClientRect();
+        if (!r.width && !r.height) continue;
+        if (r.left + sx < minL) minL = r.left + sx;
+        if (r.right + sx > maxR) maxR = r.right + sx;
+      }
+      if (minL < -1) {
+        // 왼쪽으로 삐져나간 만큼 오른쪽으로 밀어 스크롤 가능한 영역 [0, w]로 만든다
+        body.style.marginLeft = (-minL) + 'px';
+        maxR += -minL;
+      }
       var dw = Math.min(screen.width, window.innerWidth) || screen.width;
-      var w = Math.max(document.documentElement.scrollWidth,
-                       document.body ? document.body.scrollWidth : 0);
       var mv = document.querySelector('meta[name="viewport"]');
       if (!mv) {
         mv = document.createElement('meta');
         mv.setAttribute('name', 'viewport');
         (document.head || document.documentElement).appendChild(mv);
       }
-      mv.setAttribute('content', (w > dw * 1.05)
-        ? 'width=' + w + ', user-scalable=yes, minimum-scale=0.05, maximum-scale=10'
+      mv.setAttribute('content', (maxR > dw * 1.05)
+        ? 'width=' + Math.ceil(maxR) + ', user-scalable=yes, minimum-scale=0.05, maximum-scale=10'
         : 'width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=10');
-      var st = document.createElement('style');
-      st.textContent = 'img, video, iframe { max-width: 100% !important; height: auto !important; }';
-      (document.head || document.documentElement).appendChild(st);
-    })();''');
-    if (Platform.isAndroid) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      final ratio = await _web?.evaluateJavascript(
-          source:
-              'Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0)'
-              ' / Math.max(1, Math.min(screen.width, window.innerWidth))');
-      final r = (ratio is num) ? ratio.toDouble() : 1.0;
-      if (r > 1.05) {
-        try {
-          await _web?.zoomBy(zoomFactor: 1 / r, animated: false);
-        } catch (_) {}
+      return JSON.stringify({ w: Math.ceil(maxR), dw: dw });
+    })();''';
+
+    Future<void> applyOnce() async {
+      final res = await _web?.evaluateJavascript(source: measureJs);
+      if (res == null) return;
+      final m = res is String
+          ? Map<String, dynamic>.from(jsonDecode(res) as Map)
+          : Map<String, dynamic>.from(res as Map);
+      final w = (m['w'] as num?)?.toDouble() ?? 0;
+      final dw = (m['dw'] as num?)?.toDouble() ?? 1;
+      if (w <= 0 || dw <= 0) return;
+      if (Platform.isAndroid) {
+        // 안드로이드는 늦은 뷰포트 변경을 무시하므로 페이지 줌으로 맞춘다
+        final target = w > dw * 1.05 ? dw / w : 1.0;
+        if ((target - _htmlZoom).abs() > 0.02) {
+          try {
+            await _web?.zoomBy(zoomFactor: target / _htmlZoom, animated: false);
+            _htmlZoom = target;
+          } catch (_) {}
+        }
       }
+    }
+
+    await applyOnce();
+    // 이미지 지연 로드 등으로 폭이 바뀌는 경우 재계산
+    for (final delay in const [1200, 3500]) {
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) applyOnce();
+      });
     }
   }
 
