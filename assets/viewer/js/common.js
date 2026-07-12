@@ -107,16 +107,33 @@ function fitPageWidth(wPx) {
 
 // 고정 폭 콘텐츠를 transform scale로 화면 폭에 맞춤 — 렌더 완료가 늦어
 // viewport 동적 변경이 안 먹는 페이지(docx)용. 레이아웃 폭·높이도 함께 보정한다.
+// 주의: 기준을 innerWidth로 잡으면 안 된다 — 레이아웃 폭을 contentW로 넓히는 순간
+// useWideViewPort가 layout viewport를 따라 넓혀 innerWidth가 커지고, 그걸 다시 읽으면
+// fit이 풀리는 자기 유발 루프가 생긴다. 기기 폭(screen.width)을 기준으로 쓴다.
 function scaleToFit(el, contentW) {
-  const s = window.innerWidth / contentW;
-  if (s >= 1) return;
-  el.style.transformOrigin = 'top left';
-  el.style.transform = 'scale(' + s + ')';
-  el.style.width = contentW + 'px';  // 레이아웃 폭 = 콘텐츠 폭 → 스케일 후 시각 폭 = 화면 폭
-  requestAnimationFrame(() => {
-    el.style.height = el.getBoundingClientRect().height + 'px';
-    el.style.overflow = 'hidden';
-  });
+  document.documentElement.style.overflowX = 'hidden';
+  document.body.style.overflowX = 'hidden';
+  const apply = () => {
+    const vw = Math.min(screen.width, window.innerWidth) || screen.width;
+    const s = vw / contentW;
+    if (s >= 1) {
+      el.style.transform = '';
+      el.style.width = '';
+      el.style.height = '';
+      return;
+    }
+    el.style.transformOrigin = 'top left';
+    el.style.transform = 'scale(' + s + ')';
+    el.style.width = contentW + 'px';  // 레이아웃 폭 = 콘텐츠 폭 → 스케일 후 시각 폭 = 화면 폭
+    requestAnimationFrame(() => {
+      el.style.height = '';
+      el.style.height = el.getBoundingClientRect().height + 'px';
+      el.style.overflow = 'hidden';
+    });
+  };
+  apply();
+  // 회전 대응: 방향이 바뀌면 screen.width가 바뀐다
+  window.addEventListener('orientationchange', () => setTimeout(apply, 300));
 }
 
 // 렌더 결과물에서 인라인 font-family를 번들 폰트로 교정 — hwp·docx용

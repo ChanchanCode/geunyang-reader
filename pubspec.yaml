@@ -1,7 +1,7 @@
 name: geunyang_reader
 description: "광고 없는 가벼운 문서 뷰어 — pdf, docx, hwp, hwpx, html, md, txt, xlsx, epub"
 publish_to: 'none'
-version: 0.2.1+3
+version: 0.2.2+4
 
 environment:
   sdk: ^3.12.2
