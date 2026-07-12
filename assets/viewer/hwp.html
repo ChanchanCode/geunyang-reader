@@ -78,12 +78,37 @@ async function main() {
   const renderPage = (page) => {
     if (page.dataset.done) return;
     page.dataset.done = '1';
-    page.innerHTML = doc.renderPageSvg(parseInt(page.dataset.idx));
+    const idx = parseInt(page.dataset.idx);
+    // 페이지마다 SVG id(#cell-clip-N 등)가 같아서 한 문서에 붙이면 충돌한다.
+    // 엔진에 따라 다른 페이지의 clipPath를 참조해 요소가 잘려 사라지므로
+    // (안드로이드 Chromium에서 실제 발생) 페이지별 접두어로 네임스페이스를 분리한다.
+    const ns = 'pg' + idx + '-';
+    page.innerHTML = doc.renderPageSvg(idx)
+      .replace(/\bid="/g, 'id="' + ns)
+      .replace(/url\(#/g, 'url(#' + ns)
+      .replace(/(xlink:href|\bhref)="#/g, '$1="#' + ns);
     page.style.aspectRatio = '';
   };
 
   renderPage(placeholders[0]);
   hideLoading();
+
+  // ?debug=1: 페이지별 SVG 구성요소 진단 (플랫폼별 렌더 차이 추적용)
+  if (Q.get('debug')) {
+    placeholders.forEach(renderPage);
+    const probe = ['비교', '실용위성', '비행성능'];
+    const rows = placeholders.map((p, i) => {
+      const txt = p.textContent.replace(/\s+/g, '');
+      const t = p.querySelectorAll('text').length;
+      const im = p.querySelectorAll('image').length;
+      const hits = probe.filter(s => txt.includes(s)).join(',');
+      return `p${i + 1}: text=${t} image=${im} chars=${txt.length} [${hits}]`;
+    });
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#000d;color:#0f0;font:12px monospace;padding:8px;z-index:99;white-space:pre-wrap;';
+    d.textContent = rows.join('\n') + '\nUA: ' + navigator.userAgent.slice(0, 80);
+    document.body.appendChild(d);
+  }
 
   const io = new IntersectionObserver((entries) => {
     entries.forEach(e => { if (e.isIntersecting) renderPage(e.target); });
