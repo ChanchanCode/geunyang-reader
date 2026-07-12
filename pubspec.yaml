@@ -1,7 +1,7 @@
 name: geunyang_reader
 description: "광고 없는 가벼운 문서 뷰어 — pdf, docx, hwp, hwpx, html, md, txt, xlsx, epub"
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.12.2
@@ -40,6 +40,7 @@ flutter:
     - assets/viewer/fonts/
     - assets/viewer/fonts/serif/
     - assets/viewer/js/
+    - assets/viewer/js/rhwp/
     - assets/viewer/pdfjs/
     - assets/viewer/pdfjs/build/
     - assets/viewer/pdfjs/web/

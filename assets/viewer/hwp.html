@@ -6,43 +6,86 @@
 <link rel="stylesheet" href="css/doc.css">
 <link rel="stylesheet" href="css/serif.css">
 <style>
-html, body, #content { height: 100%; }
-/* 한글 기본 서체는 함초롬바탕(세리프) — 지정 폰트가 없을 때의 기본값도 세리프로 */
-#content { font-family: 'Noto Serif KR', serif; }
+/* rhwp 폰트 폴백용: 문서가 'Noto Sans KR'를 요구하면 Pretendard로 (측정·렌더 모두 동일 규칙 적용) */
+@font-face {
+  font-family: 'Noto Sans KR';
+  src: url('fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+}
+body { padding: 10px 0 40px; }
+.page {
+  max-width: 100%;
+  margin: 0 auto 12px;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+  line-height: 0; /* svg 아래 여백 제거 */
+}
+.page svg { width: 100%; height: auto; }
+#pageinfo {
+  position: fixed; top: 8px; right: 10px; z-index: 20;
+  background: rgba(0,0,0,0.55); color: #fff; border-radius: 12px;
+  padding: 3px 10px; font-size: 12px; line-height: 1.4;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
 </style>
 <script src="js/common.js"></script>
-<script src="js/hwp.bundle.js"></script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
 <div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="pageinfo"></div>
 <div id="content"></div>
-<script>
-function fitZoom(el) {
-  // hwp.js는 페이지 폭을 in/pt 단위로 지정한다 → px로 환산해 최대 페이지 폭을 찾는다
-  const toPx = { px: 1, pt: 96 / 72, in: 96, mm: 96 / 25.4, cm: 96 / 2.54 };
-  let w = 0;
-  el.querySelectorAll('div').forEach(d => {
-    const m = /^([\d.]+)(px|pt|in|mm|cm)$/.exec(d.style.width || '');
-    if (!m) return;
-    const px = parseFloat(m[1]) * toPx[m[2]];
-    if (px > w && px < 3000) w = px;
-  });
-  fitPageWidth(w + 16);
-}
+<script type="module">
+import init, { HwpDocument } from './js/rhwp/rhwp.js';
+
+// rhwp가 WASM 내부 레이아웃 계산(줄바꿈·정렬)에 쓰는 텍스트 폭 측정 콜백.
+// 측정과 SVG 렌더링이 같은 CSS 폰트 해석을 쓰므로 폰트가 없어도 넘침이 안 생긴다.
+// init 전에 반드시 등록해야 한다.
+let ctx = null;
+let lastFont = '';
+globalThis.measureTextWidth = (font, text) => {
+  if (!ctx) ctx = document.createElement('canvas').getContext('2d');
+  if (font !== lastFont) { ctx.font = font; lastFont = font; }
+  return ctx.measureText(text).width;
+};
 
 async function main() {
-  const buf = await fetchDocBuffer();
-  const el = document.getElementById('content');
-  new HWP.Viewer(el, new Uint8Array(buf), { type: 'array' });
-  // 첫 번째 헤더 컨트롤(인쇄)은 WebView에서 의미 없어 숨김
-  const print = el.querySelector('.hwpjs-header-control');
-  if (print) print.style.display = 'none';
-  requestAnimationFrame(() => {
-    fixFontFamilies(el);
-    fitZoom(el);
-    hideLoading();
-  });
+  // 번들 폰트가 로드된 뒤 측정해야 자간·줄바꿈이 정확하다
+  try { await document.fonts.ready; } catch (e) {}
+
+  const [buf] = await Promise.all([
+    fetchDocBuffer(),
+    init({ module_or_path: './js/rhwp/rhwp_bg.wasm' }),
+  ]);
+  const doc = new HwpDocument(new Uint8Array(buf));
+  const total = doc.pageCount();
+  const content = document.getElementById('content');
+
+  // 페이지를 순차 렌더링하되 프레임마다 양보해서 UI가 얼지 않게 한다
+  for (let i = 0; i < total; i++) {
+    const page = document.createElement('div');
+    page.className = 'page';
+    page.innerHTML = doc.renderPageSvg(i);
+    content.appendChild(page);
+    if (i === 0) hideLoading();
+    await new Promise(r => requestAnimationFrame(r));
+  }
+
+  // 스크롤 시 현재 페이지 표시
+  const info = document.getElementById('pageinfo');
+  const pages = content.children;
+  let hideTimer;
+  window.addEventListener('scroll', () => {
+    let cur = 1;
+    for (let i = 0; i < pages.length; i++) {
+      if (pages[i].getBoundingClientRect().top <= window.innerHeight / 2) cur = i + 1;
+    }
+    info.textContent = cur + ' / ' + total;
+    info.style.opacity = '1';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { info.style.opacity = '0'; }, 1200);
+  }, { passive: true });
 }
 main().catch(showError);
 </script>

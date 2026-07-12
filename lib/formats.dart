@@ -57,9 +57,9 @@ class Formats {
       case 'docx':
         return page('docx.html');
       case 'hwp':
-        return page('hwp.html');
       case 'hwpx':
-        return page('hwpx.html');
+        // 둘 다 rhwp(WASM)가 렌더링한다
+        return page('hwp.html');
       case 'xlsx':
       case 'xls':
       case 'csv':
