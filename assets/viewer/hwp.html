@@ -62,21 +62,49 @@ async function main() {
   const total = doc.pageCount();
   const content = document.getElementById('content');
 
-  // 페이지를 순차 렌더링하되 프레임마다 양보해서 UI가 얼지 않게 한다
+  // 긴 문서 대비: 페이지 자리(정확한 크기의 플레이스홀더)만 먼저 잡고,
+  // 화면에 가까워지면 그때 SVG를 렌더링한다
+  const placeholders = [];
   for (let i = 0; i < total; i++) {
+    const info = JSON.parse(doc.getPageInfo(i));
     const page = document.createElement('div');
     page.className = 'page';
-    page.innerHTML = doc.renderPageSvg(i);
+    page.dataset.idx = i;
+    page.style.aspectRatio = info.width + ' / ' + info.height;
     content.appendChild(page);
-    if (i === 0) hideLoading();
-    await new Promise(r => requestAnimationFrame(r));
+    placeholders.push(page);
   }
+
+  const renderPage = (page) => {
+    if (page.dataset.done) return;
+    page.dataset.done = '1';
+    page.innerHTML = doc.renderPageSvg(parseInt(page.dataset.idx));
+    page.style.aspectRatio = '';
+  };
+
+  renderPage(placeholders[0]);
+  hideLoading();
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) renderPage(e.target); });
+  }, { rootMargin: '200%' });
+  placeholders.forEach(p => io.observe(p));
+
+  // IO 알림이 누락되는 환경 대비 폴백: 스크롤 시 뷰포트 근처 페이지를 직접 렌더
+  const renderNear = () => {
+    placeholders.forEach(p => {
+      if (p.dataset.done) return;
+      const r = p.getBoundingClientRect();
+      if (r.top < window.innerHeight * 3 && r.bottom > -window.innerHeight * 2) renderPage(p);
+    });
+  };
 
   // 스크롤 시 현재 페이지 표시
   const info = document.getElementById('pageinfo');
   const pages = content.children;
   let hideTimer;
   window.addEventListener('scroll', () => {
+    renderNear();
     let cur = 1;
     for (let i = 0; i < pages.length; i++) {
       if (pages[i].getBoundingClientRect().top <= window.innerHeight / 2) cur = i + 1;
