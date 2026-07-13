@@ -1,3 +1,22 @@
+[2026-07-13 18:40] v0.5.0 — 마스코트/아이콘 리브랜딩, 메인화면 꾸밈, gnyang 통일
+
+한 일:
+- 앱 아이콘: '책 읽는 고양이' 마스코트로 교체(사용자가 Figma에서 최종 디자인). 크림 배경(#F5EFE3)+검은선, 콘텐츠 축소로 여백 확보(서랍 앱급). rsvg-convert로 래스터화, flutter_launcher_icons 재생성(안드 adaptive+iOS). adaptive_icon_background도 크림으로 변경
+- 메인화면: 앱바에 마스코트 마크, 빈 상태(첫 실행)에 책 읽는 고양이 일러스트. flutter_svg 추가, assets/mascot/(cat.svg·cat_book.svg, currentColor로 테마 틴트)
+- 영어 표기명 Geunyang Reader → gnyang Reader (strings.dart appName만; 패키지·클래스·채널 식별자는 유지)
+
+결정과 이유:
+- 마스코트는 '그냥' 시리즈 공용 캐릭터. 앱별로 아래 소품만 교체(리더=책, 플레이어=재생버튼 등)
+- 편집 기능은 넣지 않기로: 폴라리스 등은 오피스 스위트(에디터)라 편집됨. 폴라리스조차 뷰어는 별도 앱(Polaris Viewer)으로 분리 — 시장이 스위트(무거움) vs 리더(가벼움)로 갈림. hwp 편집은 OSS 부재로 애초에 불가. 가벼운 뷰어 포지션 유지가 정답. 정 원하면 나중에 PDF 하이라이트/메모(pdf.js 내장)만 검토
+
+인사이트:
+- flutter_launcher_icons는 adaptive foreground에 16% inset을 추가 → 전경 PNG는 크게 채워야 런처에서 안 작아짐. 반대로 너무 크면 여백이 없어 이번엔 700/1024로 축소
+- qlmanage(QuickLook) SVG 래스터는 흰 불투명 배경을 깔아 투명 안 됨 → librsvg(rsvg-convert)로 해결
+- 런처 라벨을 @string/app_name으로 분리: values/strings.xml=그냥 리더, values-en/strings.xml=gnyang Reader (영어 로케일 대응)
+
+막힌 점 / 다음:
+- 마스코트 활용 여지: 로딩/스플래시, 업데이트 다이얼로그 등
+
 [2026-07-13 10:38] 리더 UX 확장 — 세피아·밝기·고정·epub위치·이미지/코드 포맷·탐색기 스마트폴더
 
 한 일:

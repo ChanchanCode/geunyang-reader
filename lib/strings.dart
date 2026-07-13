@@ -11,7 +11,7 @@ class S {
     return PlatformDispatcher.instance.locale.languageCode == 'ko';
   }
 
-  static String get appName => ko ? '그냥 리더' : 'Geunyang Reader';
+  static String get appName => ko ? '그냥 리더' : 'gnyang Reader';
 
   // 홈
   static String get download => ko ? '다운로드' : 'Downloads';

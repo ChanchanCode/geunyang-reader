@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 기본(한국어) 런처 라벨 -->
+    <string name="app_name">그냥 리더</string>
+</resources>

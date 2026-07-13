@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -214,7 +215,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(S.appName),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              'assets/mascot/cat.svg',
+              height: 24,
+              colorFilter: ColorFilter.mode(cs.onSurface, BlendMode.srcIn),
+            ),
+            const SizedBox(width: 9),
+            Flexible(child: Text(S.appName, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -381,11 +393,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(height: 4),
             if (_recents.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: Text(S.noRecent,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: cs.outline, height: 1.6)),
+                padding: const EdgeInsets.symmetric(vertical: 28),
+                child: Column(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/mascot/cat_book.svg',
+                      height: 132,
+                      colorFilter:
+                          ColorFilter.mode(cs.outline, BlendMode.srcIn),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(S.noRecent,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, color: cs.outline, height: 1.6)),
+                  ],
                 ),
               )
             else

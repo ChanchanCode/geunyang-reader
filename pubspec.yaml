@@ -1,7 +1,7 @@
 name: geunyang_reader
 description: "광고 없는 가벼운 문서 뷰어 — pdf, docx, hwp, hwpx, html, md, txt, xlsx, epub"
 publish_to: 'none'
-version: 0.4.1+8
+version: 0.5.0+9
 
 environment:
   sdk: ^3.12.2
@@ -17,6 +17,7 @@ dependencies:
   url_launcher: ^6.3.0
   wakelock_plus: ^1.2.10
   cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -28,7 +29,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#3B6EF5"
+  adaptive_icon_background: "#F5EFE3"
   adaptive_icon_foreground: "assets/icon/icon_fg.png"
   remove_alpha_ios: true
 
@@ -39,6 +40,7 @@ flutter:
       fonts:
         - asset: assets/fonts/GowunBatang.ttf
   assets:
+    - assets/mascot/
     - assets/viewer/
     - assets/viewer/css/
     - assets/viewer/fonts/
