@@ -94,6 +94,13 @@ class S {
       ? '지원하지 않는 형식이거나 파일이 손상됐을 수 있어요.'
       : 'The format may be unsupported or the file may be damaged.';
   static String get openWith => ko ? '다른 앱으로 열기' : 'Open with another app';
+  static String get delete => ko ? '삭제' : 'Delete';
+  static String get cancel => ko ? '취소' : 'Cancel';
+  static String get deleteConfirm => ko
+      ? '이 파일을 기기에서 삭제할까요? 되돌릴 수 없어요.'
+      : 'Delete this file from your device? This cannot be undone.';
+  static String get deleted => ko ? '삭제했어요' : 'Deleted';
+  static String get deleteFailed => ko ? '삭제하지 못했어요' : "Couldn't delete";
 
   // 업데이트
   static String get updateNotConfigured =>

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
@@ -34,6 +35,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _matchCount = 0;
   Timer? _posSaver;
   bool _fav = false;
+  bool _immersive = false;
 
   // 문서별 줌 배율 (안드로이드 네이티브 WebView 줌)
   double? _savedZoom;
@@ -253,6 +255,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _zoomSaver?.cancel();
     _loadWatchdog?.cancel();
     WakelockPlus.disable();
+    if (_immersive) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -311,13 +316,71 @@ class _ViewerScreenState extends State<ViewerScreen> {
     } catch (_) {}
   }
 
+  /// 다른 앱으로 '보기'(ACTION_VIEW) — 공유가 아니라 편집기 등으로 넘김
+  Future<void> _openWith() async {
+    try {
+      await _channel.invokeMethod('openWith', {'path': widget.filePath});
+    } catch (_) {}
+  }
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        content: Text(S.deleteConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false), child: Text(S.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(c, true), child: Text(S.delete)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await File(widget.filePath).delete();
+      await Recents.remove(widget.filePath);
+      await Favorites.remove(widget.filePath);
+      if (mounted) Navigator.pop(context); // 뷰어 닫기 → 호출부가 목록 갱신
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(S.deleteFailed)));
+      }
+    }
+  }
+
+  /// 몰입(전체화면) 읽기 토글 — 앱바·시스템바 숨김
+  void _toggleImmersive() {
+    setState(() => _immersive = !_immersive);
+    SystemChrome.setEnabledSystemUIMode(
+        _immersive ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+  }
+
+  /// 본문 가운데를 탭하면 몰입 토글. 링크·버튼·선택·가장자리(페이지넘김/툴바)는 제외.
+  static const String _tapToggleJs = '''(function(){
+    if (window.__gyTap) return; window.__gyTap = 1;
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      if (t && t.closest && t.closest('a,button,input,select,textarea,label,[contenteditable],[role=button]')) return;
+      var s = window.getSelection && window.getSelection();
+      if (s && String(s).length) return;
+      var w = window.innerWidth || 360, h = window.innerHeight || 640;
+      if (e.clientX < w*0.25 || e.clientX > w*0.75) return;
+      if (e.clientY < h*0.12 || e.clientY > h*0.90) return;
+      try { window.flutter_inappwebview.callHandler('tapToggle'); } catch(_){}
+    }, true);
+  })();''';
+
   @override
   Widget build(BuildContext context) {
     final server = LocalServer.instance!;
     final url = Formats.viewerUrl(
         server.origin, server.token, widget.filePath, _viewerOpts(context));
     return Scaffold(
-      appBar: AppBar(
+      appBar: _immersive
+          ? null
+          : AppBar(
         toolbarHeight: 48,
         title: _searching
             ? TextField(
@@ -367,6 +430,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     icon: const Icon(Icons.share_outlined),
                     tooltip: S.share,
                     onPressed: _share),
+                PopupMenuButton<String>(
+                  onSelected: (v) =>
+                      v == 'open' ? _openWith() : _confirmDelete(),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'open',
+                      child: Row(children: [
+                        const Icon(Icons.open_in_new, size: 20),
+                        const SizedBox(width: 12),
+                        Text(S.openWith),
+                      ]),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(children: [
+                        Icon(Icons.delete_outline,
+                            size: 20, color: Theme.of(context).colorScheme.error),
+                        const SizedBox(width: 12),
+                        Text(S.delete),
+                      ]),
+                    ),
+                  ],
+                ),
               ],
       ),
       body: SafeArea(
@@ -376,6 +462,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
             InAppWebView(
         initialUrlRequest: URLRequest(url: WebUri(url)),
         findInteractionController: _find,
+        initialUserScripts: UnmodifiableListView([
+          UserScript(
+              source: _tapToggleJs,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END),
+        ]),
         initialSettings: InAppWebViewSettings(
           javaScriptEnabled: true,
           domStorageEnabled: true,
@@ -401,6 +492,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
               if (args.isNotEmpty && args.first is String) {
                 Prefs.saveEpubPos(_posKey, args.first as String);
               }
+            },
+          );
+          // 본문 가운데 탭 → 몰입 모드 토글
+          c.addJavaScriptHandler(
+            handlerName: 'tapToggle',
+            callback: (args) {
+              if (!_searching) _toggleImmersive();
             },
           );
         },
@@ -495,7 +593,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               style: TextStyle(fontSize: 13, color: cs.outline, height: 1.5)),
           const SizedBox(height: 20),
           FilledButton.tonalIcon(
-            onPressed: _share,
+            onPressed: _openWith,
             icon: const Icon(Icons.open_in_new, size: 18),
             label: Text(S.openWith),
           ),

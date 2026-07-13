@@ -1,3 +1,20 @@
+[2026-07-13 23:30] v0.5.1 — 몰입 읽기, 파일 삭제, '다른 앱으로 열기'
+
+한 일:
+- 몰입(전체화면) 읽기: 본문 가운데 탭 → 앱바+시스템바 숨김/복귀. initialUserScripts로 click 리스너 주입(링크·버튼·선택·가장자리 25%/툴바 영역 제외 → 페이지넘김·pdf.js 툴바와 충돌 회피), tapToggle 핸들러 → SystemChrome.immersiveSticky. dispose에서 edgeToEdge 복원
+- 파일 삭제: 뷰어 ⋮ 메뉴 + 탐색기 롱프레스. 확인 다이얼로그 → File.delete + Recents/Favorites 제거 → 목록 갱신/뷰어 닫기
+- 다른 앱으로 열기(ACTION_VIEW): MainActivity.openWith 네이티브 추가(공유 SEND와 구분). 뷰어 ⋮ 메뉴 + 실패 폴백 버튼을 여기로 연결
+
+결정과 이유:
+- 편집 기능 대신 '넘겨주기'(ACTION_VIEW)로: 편집기(폴라리스 등)로 보내 편집 가능. 뷰어는 가벼움 유지
+- 몰입 토글은 '가운데 탭'만: pdf.js 툴바(상단)·epub/페이지모드 좌우 탭과 안 겹치게 중앙 50%×상하 12~90%로 한정
+
+인사이트:
+- InAppWebView initialUserScripts(AT_DOCUMENT_END)로 pdf.js·raw html 포함 모든 뷰어 페이지에 공통 주입 가능
+- 안드로이드 immersiveSticky 최초 진입 시 "Viewing full screen" 시스템 안내 1회 표시(정상)
+
+검증: 에뮬레이터 라이브 — 몰입 토글 양방향, 삭제(파일 실제 제거 확인), 오버플로 메뉴 정상. 가로모드·복사·공유는 기존 동작 확인
+
 [2026-07-13 18:40] v0.5.0 — 마스코트/아이콘 리브랜딩, 메인화면 꾸밈, gnyang 통일
 
 한 일:

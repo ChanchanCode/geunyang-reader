@@ -41,6 +41,15 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                 }
+                "openWith" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) {
+                        result.error("ARG", "path required", null)
+                    } else {
+                        openWith(path)
+                        result.success(null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -93,6 +102,16 @@ class MainActivity : FlutterActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(send, null))
+    }
+
+    /** 다른 앱으로 '보기'(ACTION_VIEW) — 편집기 등으로 넘겨준다. 공유(SEND)와 다름. */
+    private fun openWith(path: String) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", File(path))
+        val view = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, contentResolver.getType(uri) ?: "*/*")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(Intent.createChooser(view, null))
     }
 
     private fun installApk(path: String) {

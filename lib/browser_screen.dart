@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'formats.dart';
 import 'main.dart' show openFile;
+import 'recents.dart';
 import 'strings.dart';
 import 'thumbs.dart';
 
@@ -186,6 +187,36 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   bool get _atRoot => _path == _root || !_path.startsWith(_root);
+
+  /// 파일 삭제 (확인 후). 최근·고정 목록에서도 제거하고 현재 목록 갱신.
+  Future<void> _confirmDelete(File f) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(f.path.split('/').last, style: const TextStyle(fontSize: 16)),
+        content: Text(S.deleteConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false), child: Text(S.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(c, true), child: Text(S.delete)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await f.delete();
+      await Recents.remove(f.path);
+      await Favorites.remove(f.path);
+      if (!mounted) return;
+      setState(() => _entries.removeWhere((x) => x.path == f.path));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(S.deleteFailed)));
+      }
+    }
+  }
 
   String _sizeText(File f) {
     try {
@@ -429,6 +460,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                   style: const TextStyle(fontSize: 12)),
                               dense: true,
                               onTap: () => openFile(context, e.path),
+                              onLongPress: () => _confirmDelete(e),
                             );
                           },
                         ),
