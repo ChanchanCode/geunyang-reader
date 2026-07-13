@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 
 /// 지원 포맷 정의: 확장자 → 뷰어 페이지 매핑.
 class Formats {
+  /// 이미지 — img.html이 렌더
+  static const Set<String> image = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+  };
+
+  /// 코드·설정 등 일반 텍스트 — txt.html이 그대로 렌더
+  static const Set<String> code = {
+    'json', 'xml', 'yaml', 'yml', 'ini', 'toml', 'conf', 'properties',
+    'py', 'js', 'ts', 'tsx', 'jsx', 'java', 'kt', 'kts', 'gradle',
+    'c', 'h', 'cpp', 'cc', 'hpp', 'cs', 'go', 'rs', 'rb', 'php',
+    'sh', 'bash', 'sql', 'css', 'scss', 'dart',
+  };
+
   static const Set<String> supported = {
     'pdf',
     'docx',
@@ -12,6 +25,8 @@ class Formats {
     'txt', 'log',
     'xlsx', 'xls', 'csv',
     'epub',
+    ...image,
+    ...code,
   };
 
   static String ext(String path) {
@@ -22,9 +37,12 @@ class Formats {
 
   static bool isSupported(String path) => supported.contains(ext(path));
 
-  /// 페이지 모드(스와이프 넘김)를 지원하는 포맷
-  static bool supportsPageMode(String path) =>
-      const {'pdf', 'epub', 'md', 'markdown', 'txt', 'log'}.contains(ext(path));
+  /// 페이지 모드(스와이프 넘김)를 지원하는 포맷 (txt 뷰어로 열리는 것 포함)
+  static bool supportsPageMode(String path) {
+    final e = ext(path);
+    return const {'pdf', 'epub', 'md', 'markdown', 'txt', 'log'}.contains(e) ||
+        code.contains(e);
+  }
 
   /// 파일 경로 → 로컬 서버 뷰어 URL. [origin]은 http://127.0.0.1:port, [token]은 서버 토큰.
   /// [opts]는 읽기 설정(fs=글자크기, lh=줄간격, th=light|dark, pm=scroll|page, lang).
@@ -39,6 +57,9 @@ class Formats {
 
     String page(String html) =>
         '$origin/$token/assets/$html?doc=${Uri.encodeComponent(docUrl)}&name=$name$q';
+
+    if (image.contains(e)) return page('img.html');
+    if (code.contains(e)) return page('txt.html');
 
     switch (e) {
       case 'pdf':
@@ -75,7 +96,10 @@ class Formats {
   }
 
   static IconData icon(String path) {
-    switch (ext(path)) {
+    final e = ext(path);
+    if (image.contains(e)) return Icons.image_outlined;
+    if (code.contains(e)) return Icons.code_outlined;
+    switch (e) {
       case 'pdf':
         return Icons.picture_as_pdf_outlined;
       case 'docx':
@@ -104,7 +128,10 @@ class Formats {
 
   /// 확장자별 저채도 배지 색 — 알록달록하지 않게, 편안한 톤으로
   static Color color(String path) {
-    switch (ext(path)) {
+    final e = ext(path);
+    if (image.contains(e)) return const Color(0xFF7FA0A8); // 뮤트 스틸블루
+    if (code.contains(e)) return const Color(0xFF8B8F98); // 그레이
+    switch (e) {
       case 'pdf':
         return const Color(0xFFB56A5E); // 테라코타
       case 'docx':
@@ -130,7 +157,10 @@ class Formats {
 
   /// 배지에 쓰는 짧은 라벨
   static String badge(String path) {
-    switch (ext(path)) {
+    final e = ext(path);
+    if (image.contains(e)) return 'IMG';
+    if (code.contains(e)) return e.length <= 4 ? e.toUpperCase() : 'CODE';
+    switch (e) {
       case 'pdf':
         return 'PDF';
       case 'docx':

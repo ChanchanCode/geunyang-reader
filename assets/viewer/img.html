@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.2, maximum-scale=8, user-scalable=yes">
+<link rel="stylesheet" href="css/doc.css">
+<style>
+html, body { height: 100%; margin: 0; background: var(--bg); }
+/* 화면 안에 담되(폭·높이 맞춤) 핀치 줌으로 확대 가능 */
+#wrap {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: auto; -webkit-overflow-scrolling: touch;
+}
+#img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; display: none;
+  /* 투명 PNG가 배경에 묻히지 않게 옅은 체커 대신 종이색 받침 */
+}
+</style>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div class="msg">여는 중…</div></div>
+<div id="error"><h2>파일을 열지 못했어요</h2><p></p></div>
+<div id="wrap"><img id="img" alt=""></div>
+<script>
+const img = document.getElementById('img');
+img.onload = () => { img.style.display = 'block'; hideLoading(); };
+img.onerror = () => showError(LANG === 'ko' ? '이미지를 표시할 수 없어요' : "Can't display this image");
+img.src = DOC_URL;
+</script>
+</body>
+</html>

@@ -14,6 +14,11 @@ import 'strings.dart';
 /// 저장소를 만든 뒤 아래 상수만 바꾸면 된다.
 const String kGithubRepo = 'ChanchanCode/geunyang-reader';
 
+/// 후원(밀크티) 링크. 실제 Buy Me a Coffee 핸들로 바꾸면 설정에 항목이 뜬다.
+/// 'YOUR_HANDLE'이 남아 있으면 항목을 숨긴다.
+const String kSponsorUrl = 'https://buymeacoffee.com/YOUR_HANDLE';
+bool get kSponsorConfigured => !kSponsorUrl.contains('YOUR_HANDLE');
+
 const _channel = MethodChannel('geunyang/native');
 
 class Updater {

@@ -30,6 +30,17 @@
   --pre-bg: #22262e;
 }
 
+:root[data-theme="sepia"] {
+  --fg: #4b3f2f;
+  --bg: #e6dcc4;
+  --paper: #f4ecd8;
+  --muted: #9a8b6d;
+  --accent: #8a6d3b;
+  --border: #ddd0b0;
+  --code-bg: #ece1c6;
+  --pre-bg: #efe6cf;
+}
+
 * { -webkit-tap-highlight-color: transparent; }
 
 html, body {

@@ -46,14 +46,40 @@ async function main() {
     body: { background: '#0f1114 !important', color: '#e4e6ea !important' },
     'a, a *': { color: '#6ba1ff !important' },
   });
+  rendition.themes.register('sepia', {
+    body: { background: '#f4ecd8 !important', color: '#4b3f2f !important' },
+    'a, a *': { color: '#8a6d3b !important' },
+  });
   if (TH === 'dark') {
     rendition.themes.select('dark');
     document.getElementById('content').style.background = '#0f1114';
+  } else if (TH === 'sepia') {
+    rendition.themes.select('sepia');
+    document.getElementById('content').style.background = '#f4ecd8';
   }
   rendition.themes.fontSize(FS + 'px');
 
+  // 읽던 위치 복원 — Flutter가 넘긴 저장 위치(JSON: 섹션 CFI + 스크롤 픽셀).
+  // 서버 포트가 매 실행 바뀌어 localStorage는 못 쓰므로 Flutter Prefs에 저장한다.
+  const content = document.getElementById('content');
+  let start = { cfi: null, scroll: 0 };
+  try { if (Q.get('epos')) start = JSON.parse(Q.get('epos')); } catch (e) {}
+  let curCfi = start.cfi || null;
+  function persist() {
+    const data = JSON.stringify({ cfi: curCfi, scroll: content ? content.scrollTop : 0 });
+    try {
+      if (window.flutter_inappwebview) {
+        window.flutter_inappwebview.callHandler('saveEpubPos', data);
+      }
+    } catch (e) {}
+  }
+  rendition.on('relocated', loc => {
+    if (loc && loc.start && loc.start.cfi) curCfi = loc.start.cfi;
+    persist();
+  });
+
   // display() 프라미스가 환경에 따라 안 풀리는 경우가 있어 rendered 이벤트/타임아웃과 레이스
-  const displayed = rendition.display();
+  const displayed = rendition.display(start.cfi || undefined);
   await Promise.race([
     displayed,
     new Promise(res => rendition.on('rendered', res)),
@@ -75,6 +101,22 @@ async function main() {
   document.getElementById('next').onclick = () => rendition.next();
   document.getElementById('bar').style.display = 'flex';
   hideLoading();
+
+  // 스크롤 모드에서는 바깥 #content가 실제 스크롤을 담당한다 — epub.js relocated는
+  // 이 스크롤을 추적하지 못해 CFI만으로는 챕터 시작으로만 돌아간다.
+  // 그래서 챕터 내 픽셀 위치(scrollTop)를 함께 저장·복원한다.
+  if (!paged) {
+    if (start.scroll > 0) {
+      for (const d of [300, 900, 1800]) {
+        setTimeout(() => { content.scrollTop = start.scroll; }, d);
+      }
+    }
+    let st;
+    content.addEventListener('scroll', () => {
+      clearTimeout(st);
+      st = setTimeout(persist, 250);
+    });
+  }
 
   // 목차는 본문 표시를 막지 않게 비동기로 채운다
   book.loaded.navigation.then(nav => {

@@ -2,7 +2,7 @@
 const Q = new URLSearchParams(location.search);
 const DOC_URL = Q.get('doc');   // 문서 파일의 서버 URL (같은 origin)
 const DOC_NAME = Q.get('name') || '';
-const TH = Q.get('th') || 'light';        // light | dark
+const TH = Q.get('th') || 'light';        // light | dark | sepia
 const FS = parseFloat(Q.get('fs') || '16');   // 본문 글자 크기(px)
 const LH = parseFloat(Q.get('lh') || '1.65'); // 줄 간격
 const PM = Q.get('pm') || 'scroll';       // scroll | page

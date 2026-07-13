@@ -44,7 +44,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     'PPT': {'pptx'},
     'Excel': {'xlsx', 'xls', 'csv'},
     'EPUB': {'epub'},
+    'IMG': Formats.image,
     'TXT/MD': {'txt', 'log', 'md', 'markdown'},
+    'CODE': Formats.code,
     'HTML': {'html', 'htm'},
   };
 

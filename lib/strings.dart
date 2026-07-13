@@ -18,6 +18,11 @@ class S {
   static String get documents => ko ? '문서' : 'Documents';
   static String get allStorage => ko ? '전체' : 'All files';
   static String get recentFiles => ko ? '최근 연 파일' : 'Recently opened';
+  static String get shortcuts => ko ? '바로가기' : 'Shortcuts';
+  static String get sdcard => ko ? 'SD 카드' : 'SD card';
+  static String get pinned => ko ? '고정' : 'Pinned';
+  static String get pinAdded => ko ? '고정했어요' : 'Pinned';
+  static String get pinRemoved => ko ? '고정을 해제했어요' : 'Unpinned';
   static String get recentDownloads => ko ? '최근 받은 파일' : 'Recently added';
   static String get all => ko ? '전체' : 'All';
   static String get searchingFiles => ko ? '모으는 중…' : 'Collecting…';
@@ -52,6 +57,8 @@ class S {
   static String get theme => ko ? '테마' : 'Theme';
   static String get light => ko ? '라이트' : 'Light';
   static String get dark => ko ? '다크' : 'Dark';
+  static String get sepia => ko ? '세피아' : 'Sepia';
+  static String get brightness => ko ? '밝기' : 'Brightness';
   static String get reading => ko ? '읽기' : 'Reading';
   static String get readingHint => ko
       ? 'md · txt 문서에 적용돼요 (epub은 글자 크기만)'
@@ -71,6 +78,9 @@ class S {
   static String get checkUpdate => ko ? '업데이트 확인' : 'Check for updates';
   static String get version => ko ? '버전' : 'Version';
   static String get sourceCode => ko ? '소스 코드' : 'Source code';
+  static String get buyMilkTea => ko ? '개발자에게 밀크티 한 잔 🧋' : 'Buy the dev a milk tea 🧋';
+  static String get buyMilkTeaHint =>
+      ko ? '광고 없이 만드는 데 힘이 돼요' : 'Helps keep this ad-free';
   static String get aboutBody => ko
       ? '광고 없는 문서 뷰어.\npdf · docx · hwp · hwpx · html · md · txt · xlsx · epub'
       : 'An ad-free document viewer.\npdf · docx · hwp · hwpx · html · md · txt · xlsx · epub';
@@ -78,6 +88,12 @@ class S {
   // 뷰어
   static String get search => ko ? '문서에서 찾기' : 'Find in document';
   static String get share => ko ? '공유' : 'Share';
+  static String get cantOpenFile =>
+      ko ? '파일을 열지 못했어요' : "Couldn't open this file";
+  static String get cantOpenBody => ko
+      ? '지원하지 않는 형식이거나 파일이 손상됐을 수 있어요.'
+      : 'The format may be unsupported or the file may be damaged.';
+  static String get openWith => ko ? '다른 앱으로 열기' : 'Open with another app';
 
   // 업데이트
   static String get updateNotConfigured =>

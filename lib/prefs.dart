@@ -6,8 +6,12 @@ class Prefs {
   static late SharedPreferences _p;
   static final ValueNotifier<int> revision = ValueNotifier(0);
 
+  /// 뷰어 밝기 전용 알림. 이 값은 앱 전체가 아니라 뷰어 오버레이만 다시 그린다.
+  static final ValueNotifier<double> brightnessNotifier = ValueNotifier(1.0);
+
   static Future<void> init() async {
     _p = await SharedPreferences.getInstance();
+    brightnessNotifier.value = brightness;
   }
 
   static void _bump() => revision.value++;
@@ -19,11 +23,20 @@ class Prefs {
     _bump();
   }
 
-  /// 'system' | 'light' | 'dark'
+  /// 'system' | 'light' | 'dark' | 'sepia'
   static String get themeMode => _p.getString('themeMode') ?? 'system';
   static set themeMode(String v) {
     _p.setString('themeMode', v);
     _bump();
+  }
+
+  /// 뷰어 화면 밝기(0.2~1.0). 1.0이면 어둡게 덮지 않음.
+  /// 앱 전체 리빌드를 유발하지 않도록 [_bump] 대신 [brightnessNotifier]만 갱신한다.
+  static double get brightness => _p.getDouble('brightness') ?? 1.0;
+  static set brightness(double v) {
+    final c = v.clamp(0.2, 1.0);
+    _p.setDouble('brightness', c);
+    brightnessNotifier.value = c;
   }
 
   /// md·txt 본문 글자 크기(px)
@@ -66,4 +79,15 @@ class Prefs {
     _p.setDouble('posx:$key', x);
     _p.setDouble('posy:$key', y);
   }
+
+  // ---- 문서별 줌 배율 기억 (docx·pptx·hwp·xlsx·md·txt) ----
+  static double? zoom(String key) => _p.getDouble('zoom:$key');
+  static void saveZoom(String key, double scale) =>
+      _p.setDouble('zoom:$key', scale);
+
+  // ---- epub 읽던 위치 (CFI+scrollTop JSON). 뷰어가 localStorage에 저장하면
+  // 서버 포트가 매 실행 바뀌어 소실되므로, JS 브리지로 여기(경로+크기 키)에 저장한다. ----
+  static String? epubPos(String key) => _p.getString('epub:$key');
+  static void saveEpubPos(String key, String json) =>
+      _p.setString('epub:$key', json);
 }

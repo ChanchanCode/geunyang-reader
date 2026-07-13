@@ -21,11 +21,13 @@ Future<void> main() async {
 }
 
 /// 파일을 뷰어로 연다. 어디서 호출하든 최근 목록에도 기록.
+/// 뷰어가 닫힐 때까지 완료되지 않는다 — 호출부가 await 후 목록을 갱신하면
+/// 뷰어에서 바뀐 고정 상태 등이 반영된다.
 Future<void> openFile(BuildContext? context, String path) async {
   await Recents.add(path);
   final nav = navigatorKey.currentState;
   if (nav == null) return;
-  nav.push(MaterialPageRoute(builder: (_) => ViewerScreen(filePath: path)));
+  await nav.push(MaterialPageRoute(builder: (_) => ViewerScreen(filePath: path)));
 }
 
 class GeunyangApp extends StatefulWidget {
@@ -56,20 +58,24 @@ class _GeunyangAppState extends State<GeunyangApp> {
     });
   }
 
-  ThemeData _theme(Brightness b) {
-    // 차분한 웜 그레이 팔레트 + 명조 타이틀
+  ThemeData _theme(Brightness b, {bool sepia = false}) {
+    // 차분한 웜 그레이 팔레트 + 명조 타이틀. 세피아는 따뜻한 종이 톤.
     final cs = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF7D6F5E),
+      seedColor: sepia ? const Color(0xFF8A6D3B) : const Color(0xFF7D6F5E),
       brightness: b,
+    ).copyWith(
+      surface: sepia ? const Color(0xFFF4ECD8) : null,
+      onSurface: sepia ? const Color(0xFF4B3F2F) : null,
     );
+    final bg = sepia
+        ? const Color(0xFFEDE4CE)
+        : (b == Brightness.light ? const Color(0xFFF7F5F1) : null);
     return ThemeData(
       colorScheme: cs,
-      scaffoldBackgroundColor:
-          b == Brightness.light ? const Color(0xFFF7F5F1) : null,
+      scaffoldBackgroundColor: bg,
       appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor:
-            b == Brightness.light ? const Color(0xFFF7F5F1) : null,
+        backgroundColor: bg,
         titleTextStyle: TextStyle(
           fontFamily: 'GowunBatang',
           fontSize: 19,
@@ -88,10 +94,10 @@ class _GeunyangAppState extends State<GeunyangApp> {
         title: S.appName,
         navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: _theme(Brightness.light),
+        theme: _theme(Brightness.light, sepia: Prefs.themeMode == 'sepia'),
         darkTheme: _theme(Brightness.dark),
         themeMode: switch (Prefs.themeMode) {
-          'light' => ThemeMode.light,
+          'light' || 'sepia' => ThemeMode.light,
           'dark' => ThemeMode.dark,
           _ => ThemeMode.system,
         },

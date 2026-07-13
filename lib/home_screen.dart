@@ -24,7 +24,29 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<RecentEntry> _recents = [];
   List<File> _recentDownloads = [];
+  List<String> _favorites = [];
+  List<_Shortcut> _shortcuts = [];
   bool _hasStorage = true;
+
+  /// 메신저 등이 받은 파일을 두는 '공개' 폴더 후보. 앱 스코프(Android/data/*)는
+  /// OS가 접근을 막지만, Android/media/* 와 DCIM·Download 하위는 권한으로 읽힌다.
+  /// 라벨별로 첫 번째 '존재 + 지원 문서 있음' 폴더만 바로가기로 띄운다.
+  static const _folderCandidates = <String, List<String>>{
+    'KakaoTalk': [
+      '/storage/emulated/0/DCIM/KakaoTalk',
+      '/storage/emulated/0/KakaoTalkDownload',
+      '/storage/emulated/0/Download/KakaoTalk',
+    ],
+    'Telegram': [
+      '/storage/emulated/0/Android/media/org.telegram.messenger/Telegram',
+      '/storage/emulated/0/Telegram',
+      '/storage/emulated/0/Download/Telegram',
+    ],
+    'WhatsApp': [
+      '/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media',
+      '/storage/emulated/0/WhatsApp/Media',
+    ],
+  };
 
   @override
   void initState() {
@@ -59,13 +81,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final granted =
         !Platform.isAndroid || await Permission.manageExternalStorage.isGranted;
     final recents = await Recents.load();
+    final favorites = await Favorites.load();
     final downloads = granted ? await _loadRecentDownloads() : <File>[];
+    final shortcuts = granted ? await _loadShortcuts() : <_Shortcut>[];
     if (!mounted) return;
     setState(() {
       _hasStorage = granted;
       _recents = recents;
+      _favorites = favorites;
       _recentDownloads = downloads;
+      _shortcuts = shortcuts;
     });
+  }
+
+  /// 외장 볼륨(SD 등) + 스마트 폴더(카톡 등) 바로가기 수집. 안드로이드 전용.
+  Future<List<_Shortcut>> _loadShortcuts() async {
+    if (!Platform.isAndroid) return [];
+    final out = <_Shortcut>[];
+    // 1) /storage 아래 외장 볼륨 — emulated·self 제외, 읽을 수 있는 것만
+    try {
+      for (final e in Directory('/storage').listSync()) {
+        final name = e.path.split('/').last;
+        if (name == 'emulated' || name == 'self' || e is! Directory) continue;
+        try {
+          e.listSync(); // 접근 가능?
+          out.add(_Shortcut(S.sdcard, e.path, Icons.sd_card_outlined));
+        } catch (_) {}
+      }
+    } catch (_) {}
+    // 2) 메신저 등 공개 폴더 — 존재하고 지원 문서가 있는 것만
+    for (final entry in _folderCandidates.entries) {
+      for (final path in entry.value) {
+        final dir = Directory(path);
+        if (!dir.existsSync()) continue;
+        if (await _hasSupported(dir, 0)) {
+          out.add(_Shortcut(entry.key, path, Icons.folder_special_outlined));
+          break; // 라벨당 하나
+        }
+      }
+    }
+    return out;
+  }
+
+  /// 폴더 하위에 지원 문서가 하나라도 있는지 (얕게, 예산 제한)
+  Future<bool> _hasSupported(Directory d, int depth) async {
+    if (depth > 3) return false;
+    try {
+      var seen = 0;
+      await for (final e in d.list(followLinks: false)) {
+        if (++seen > 300) return false;
+        final name = e.path.split('/').last;
+        if (name.startsWith('.')) continue;
+        if (e is File && Formats.isSupported(e.path)) return true;
+        if (e is Directory && await _hasSupported(e, depth + 1)) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _togglePin(String path) async {
+    final now = await Favorites.toggle(path);
+    await _refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(now ? S.pinAdded : S.pinRemoved),
+      duration: const Duration(seconds: 1),
+    ));
   }
 
   /// 다운로드 폴더(iOS는 앱 문서)에서 최근 수정된 지원 문서 5개
@@ -98,6 +179,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => BrowserScreen(initialPath: path)),
+    ).then((_) => _refresh());
+  }
+
+  /// 지정한 루트로 탐색 (외장 볼륨·스마트 폴더 — 그 위로는 못 올라감)
+  void _browseAt(String path, String label) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            BrowserScreen(initialPath: path, rootPath: path, rootLabel: label),
+      ),
     ).then((_) => _refresh());
   }
 
@@ -195,6 +287,71 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ],
             ),
+            if (_shortcuts.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(S.shortcuts,
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: cs.outline)),
+              const SizedBox(height: 4),
+              for (final s in _shortcuts)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(s.icon, color: cs.primary),
+                  title: Text(s.label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    s.path.replaceFirst('/storage/emulated/0/', ''),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  dense: true,
+                  onTap: () => _browseAt(s.path, s.label),
+                ),
+            ],
+            if (_favorites.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(S.pinned,
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: cs.outline)),
+              const SizedBox(height: 4),
+              for (final path in _favorites)
+                Dismissible(
+                  key: ValueKey('fav:$path'),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) {
+                    Favorites.remove(path);
+                    setState(() => _favorites.remove(path));
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: Icon(Icons.push_pin_outlined, color: cs.outline),
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: DocThumb(path: path),
+                    title: Text(path.split('/').last,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(
+                      path.replaceFirst('/storage/emulated/0/', ''),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: () async {
+                      if (!File(path).existsSync()) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(S.fileGone)));
+                        _refresh();
+                        return;
+                      }
+                      await openFile(context, path);
+                      _refresh();
+                    },
+                  ),
+                ),
+            ],
             if (_recentDownloads.isNotEmpty) ...[
               const SizedBox(height: 24),
               Text(S.recentDownloads,
@@ -265,6 +422,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       await openFile(context, e.path);
                       _refresh();
                     },
+                    onLongPress: () => _togglePin(e.path),
                   ),
                 ),
           ],
@@ -287,6 +445,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return '';
     }
   }
+}
+
+class _Shortcut {
+  const _Shortcut(this.label, this.path, this.icon);
+  final String label;
+  final String path;
+  final IconData icon;
 }
 
 class _QuickButton extends StatelessWidget {

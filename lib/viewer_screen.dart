@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'formats.dart';
 import 'prefs.dart';
+import 'recents.dart';
 import 'server.dart';
 import 'strings.dart';
 import 'thumbs.dart';
@@ -32,6 +33,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _matchIdx = 0;
   int _matchCount = 0;
   Timer? _posSaver;
+  bool _fav = false;
+
+  // 문서별 줌 배율 (안드로이드 네이티브 WebView 줌)
+  double? _savedZoom;
+  double _curScale = 1.0;
+  Timer? _zoomSaver;
+
+  // 로딩/실패 표시 (raw html은 자체 스피너가 없어 Flutter 레벨에서 처리)
+  bool _loading = false;
+  bool _loadError = false;
+  Timer? _loadWatchdog;
 
   String get _name => widget.filePath.split('/').last;
 
@@ -46,6 +58,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// pdf는 pdf.js가, epub은 스크롤 구조가 달라 자체 처리 — 나머지만 위치 기억
   bool get _remembersPosition =>
+      !const {'pdf', 'epub'}.contains(Formats.ext(widget.filePath));
+
+  /// 줌 배율 기억: 안드로이드 네이티브 줌을 쓰는 문서만.
+  /// raw html은 자체 폭 맞춤(_htmlZoom)과 충돌하고, pdf·epub은 자체 뷰어가 처리한다.
+  bool get _remembersZoom =>
+      Platform.isAndroid &&
+      !_isRawHtml &&
       !const {'pdf', 'epub'}.contains(Formats.ext(widget.filePath));
 
   /// 뷰어 래퍼 없이 원본 그대로 여는 포맷 (html)
@@ -160,11 +179,79 @@ class _ViewerScreenState extends State<ViewerScreen> {
       },
     );
     if (Prefs.keepScreenOn) WakelockPlus.enable();
+    if (_remembersZoom) _savedZoom = Prefs.zoom(_posKey);
+    // raw html은 페이지 내 스피너가 없어 로딩 표시를 Flutter가 담당
+    _loading = _isRawHtml;
+    if (_loading) {
+      _loadWatchdog = Timer(const Duration(seconds: 25), () {
+        if (mounted) setState(() => _loading = false);
+      });
+    }
+    Favorites.contains(widget.filePath).then((v) {
+      if (mounted) setState(() => _fav = v);
+    });
+  }
+
+  void _restoreZoom() {
+    final s = _savedZoom;
+    if (!_remembersZoom || s == null || s <= 0) return;
+    // 렌더가 안정된 뒤 배율 적용 (위치 복원과 같은 다단계 재시도)
+    for (final delay in const [500, 1500]) {
+      Future.delayed(Duration(milliseconds: delay), () async {
+        if (!mounted) return;
+        final cur = _curScale <= 0 ? 1.0 : _curScale;
+        final factor = s / cur;
+        if ((factor - 1).abs() < 0.03) return;
+        try {
+          await _web?.zoomBy(zoomFactor: factor, animated: false);
+        } catch (_) {}
+      });
+    }
+  }
+
+  Future<void> _toggleFav() async {
+    final now = await Favorites.toggle(widget.filePath);
+    if (!mounted) return;
+    setState(() => _fav = now);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(now ? S.pinAdded : S.pinRemoved),
+      duration: const Duration(seconds: 1),
+    ));
+  }
+
+  /// 밝기 조절 시트 — 화면을 어둡게 덮는 오버레이 세기를 조절한다.
+  void _brightnessSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.brightness_low, size: 20),
+                Expanded(
+                  child: Slider(
+                    value: Prefs.brightness,
+                    min: 0.2,
+                    max: 1.0,
+                    onChanged: (v) => setSheet(() => Prefs.brightness = v),
+                  ),
+                ),
+                const Icon(Icons.brightness_high, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _posSaver?.cancel();
+    _zoomSaver?.cancel();
+    _loadWatchdog?.cancel();
     WakelockPlus.disable();
     _searchCtrl.dispose();
     super.dispose();
@@ -174,10 +261,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final dark = Prefs.themeMode == 'dark' ||
         (Prefs.themeMode == 'system' &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final th = Prefs.themeMode == 'sepia' ? 'sepia' : (dark ? 'dark' : 'light');
+    // epub은 바깥 웹뷰가 스크롤하지 않아 위치를 JS 브리지로 저장한다.
+    // 저장해 둔 위치가 있으면 뷰어에 넘겨 그 지점부터 열게 한다.
+    String epos = '';
+    if (Formats.ext(widget.filePath) == 'epub') {
+      final saved = Prefs.epubPos(_posKey);
+      if (saved != null) epos = Uri.encodeComponent(saved);
+    }
     return {
       'fs': Prefs.fontSize.round().toString(),
       'lh': Prefs.lineHeight.toStringAsFixed(2),
-      'th': dark ? 'dark' : 'light',
+      'th': th,
+      if (epos.isNotEmpty) 'epos': epos,
       'pm': Formats.supportsPageMode(widget.filePath) ? Prefs.pageMode : 'scroll',
       'lang': S.ko ? 'ko' : 'en',
     };
@@ -260,6 +356,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     tooltip: S.search,
                     onPressed: _startSearch),
                 IconButton(
+                    icon: Icon(_fav ? Icons.push_pin : Icons.push_pin_outlined),
+                    tooltip: S.pinned,
+                    onPressed: _toggleFav),
+                IconButton(
+                    icon: const Icon(Icons.brightness_medium_outlined),
+                    tooltip: S.brightness,
+                    onPressed: _brightnessSheet),
+                IconButton(
                     icon: const Icon(Icons.share_outlined),
                     tooltip: S.share,
                     onPressed: _share),
@@ -267,7 +371,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: InAppWebView(
+        child: Stack(
+          children: [
+            InAppWebView(
         initialUrlRequest: URLRequest(url: WebUri(url)),
         findInteractionController: _find,
         initialSettings: InAppWebViewSettings(
@@ -286,11 +392,43 @@ class _ViewerScreenState extends State<ViewerScreen> {
           horizontalScrollBarEnabled: true,
           transparentBackground: false,
         ),
-        onWebViewCreated: (c) => _web = c,
+        onWebViewCreated: (c) {
+          _web = c;
+          // epub 뷰어가 읽던 위치(CFI+scrollTop)를 넘겨주면 경로 키로 저장
+          c.addJavaScriptHandler(
+            handlerName: 'saveEpubPos',
+            callback: (args) {
+              if (args.isNotEmpty && args.first is String) {
+                Prefs.saveEpubPos(_posKey, args.first as String);
+              }
+            },
+          );
+        },
         onLoadStop: (c, u) async {
+          _loadWatchdog?.cancel();
+          if (mounted && _loading) setState(() => _loading = false);
           if (_isRawHtml) await _fitRawHtml(c);
           _restorePosition();
+          _restoreZoom();
           _captureThumb(c);
+        },
+        onReceivedError: (c, req, err) {
+          // 메인 프레임 로드 실패만 폴백 화면으로 (하위 리소스 오류는 무시)
+          if (req.isForMainFrame != true) return;
+          if (mounted) {
+            setState(() {
+              _loading = false;
+              _loadError = true;
+            });
+          }
+        },
+        onZoomScaleChanged: (c, oldScale, newScale) {
+          _curScale = newScale;
+          if (!_remembersZoom) return;
+          _zoomSaver?.cancel();
+          _zoomSaver = Timer(const Duration(milliseconds: 400), () {
+            Prefs.saveZoom(_posKey, newScale);
+          });
         },
         onScrollChanged: (c, x, y) {
           if (!_remembersPosition) return;
@@ -309,7 +447,59 @@ class _ViewerScreenState extends State<ViewerScreen> {
           }
           return NavigationActionPolicy.CANCEL;
         },
+            ),
+            // 밝기 오버레이 — 앱 전체가 아니라 이 부분만 다시 그린다
+            ValueListenableBuilder<double>(
+              valueListenable: Prefs.brightnessNotifier,
+              builder: (_, b, child) => b >= 1.0
+                  ? const SizedBox.shrink()
+                  : Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          color: Colors.black
+                              .withValues(alpha: (1.0 - b) * 0.75),
+                        ),
+                      ),
+                    ),
+            ),
+            if (_loading)
+              Positioned.fill(
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            if (_loadError) Positioned.fill(child: _errorPanel(context)),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _errorPanel(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.description_outlined, size: 44, color: cs.outline),
+          const SizedBox(height: 16),
+          Text(S.cantOpenFile,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(S.cantOpenBody,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: cs.outline, height: 1.5)),
+          const SizedBox(height: 20),
+          FilledButton.tonalIcon(
+            onPressed: _share,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: Text(S.openWith),
+          ),
+        ],
       ),
     );
   }

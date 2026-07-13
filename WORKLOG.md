@@ -1,3 +1,34 @@
+[2026-07-13 10:38] 리더 UX 확장 — 세피아·밝기·고정·epub위치·이미지/코드 포맷·탐색기 스마트폴더
+
+한 일:
+- 읽기: 세피아 테마(앱 크롬 + 흐름형 뷰어 doc.css `[data-theme=sepia]`, docx·hwp·pptx는 data-force-light라 라이트 유지), 뷰어 밝기 오버레이(0.2~1.0, 검정 오버레이 최대 75%). 밝기는 `Prefs.brightnessNotifier`(ValueNotifier)로 뷰어만 리빌드
+- 고정(즐겨찾기): `Favorites`(recents.dart, 개수 제한 없음), 뷰어 압정 토글, 홈 "고정" 섹션(스와이프 해제)·최근 롱프레스 토글
+- epub 읽던 위치: CFI(섹션)+scrollTop 저장·복원. 초기 localStorage로 했다가 재시작 시 소실 발견 → JS↔Dart 브리지(`saveEpubPos` 핸들러)로 Prefs 저장
+- 문서별 줌 배율 기억(안드로이드 네이티브 줌, docx·hwp·xlsx 등). raw html·pdf·epub 제외
+- 로딩/실패 폴백: raw html 스피너(25s watchdog), 메인프레임 로드 실패 시 "다른 앱으로 열기" 패널
+- 포맷 추가: 이미지(jpg·png·gif·webp·bmp·svg → 새 img.html), 코드·설정 텍스트(json·py·xml 등 `Formats.code` → txt.html). 배지·필터칩(IMG/CODE) 추가
+- 탐색기: 외장 볼륨(`/storage/*` 열거)·스마트 폴더 바로가기(카톡 등 공개 폴더만 존재+문서 확인 후 노출) — 홈 "Shortcuts" 섹션
+- 설정 구석에 밀크티 후원 링크(Buy Me a Coffee) — `kSponsorUrl` placeholder면 숨김
+
+결정과 이유:
+- epub 위치를 Prefs 브리지로: 루프백 서버가 매 실행 랜덤 포트+토큰이라 origin이 바뀌어 localStorage 전멸. 다른 포맷처럼 경로+크기 키로 Dart에 저장해야 재시작에도 남음
+- 스마트 폴더는 하드코딩 버튼이 아니라 "존재+지원문서 있는 것만" 노출 — 빈 버튼 방지, 카톡 외 메신저도 일반 적용
+- 세피아를 themeMode 4번째 값으로: 이미 th 파라미터로 뷰어에 테마 전달 중이라 저비용
+
+인사이트:
+- `MANAGE_EXTERNAL_STORAGE`로도 `Android/data/*`·`Android/obb/*`는 OS가 차단(앱 Permission denied) — 앱 스코프에만 받은 파일은 원천 불가. 단 `Android/media/*`·DCIM·Download 하위는 읽힘 → 스마트폴더 후보는 공개 경로만
+- `openFile`(main.dart)이 `nav.push`를 await 안 해서 뷰어 복귀 시 홈이 갱신 안 됨(고정 안 뜸) → await로 수정
+- epub `flow:scrolled-doc`은 바깥 #content가 스크롤 → epub.js relocated가 챕터 내 위치를 못 추적, CFI만으론 챕터 top으로만 복원. scrollTop 별도 저장 필요
+
+검증:
+- 안드로이드 에뮬레이터(seorab)에서 라이브: 세피아·밝기·고정·epub위치(앱 재시작 후에도 복원)·raw html·이미지(png/svg)·코드(json)·카톡 스마트폴더·IMG/CODE 필터 전부 확인
+- 못 돌린 것: 문서 줌 기억(adb 핀치 주입 불가), 외장 SD(에뮬 볼륨 없음), 밀크티 항목 라이브(핸들 미설정) — 코드·analyzer만 확인
+
+막힌 점 / 다음:
+- 밀크티 후원: Buy Me a Coffee 핸들 정해지면 `kSponsorUrl` 채우기 (아주 먼 미래)
+- 줌 기억·SD·후원 항목은 실기기에서 최종 확인 필요
+- setupPageMode의 스크롤 위치는 아직 localStorage — 재시작 시 소실(추후 epub처럼 브리지화 여지)
+
 [2026-07-12 17:55] v0.3.0~v0.4.0 — pptx·디자인 리프레시·탐색기 UX·성능
 
 한 일:

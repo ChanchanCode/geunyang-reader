@@ -58,17 +58,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               showSelectedIcon: false,
             ),
           ),
-          ListTile(
-            title: Text(S.theme),
-            trailing: SegmentedButton<String>(
-              segments: [
-                ButtonSegment(value: 'system', label: Text(S.systemDefault)),
-                ButtonSegment(value: 'light', label: Text(S.light)),
-                ButtonSegment(value: 'dark', label: Text(S.dark)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(S.theme),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(value: 'system', label: Text(S.systemDefault)),
+                      ButtonSegment(value: 'light', label: Text(S.light)),
+                      ButtonSegment(value: 'dark', label: Text(S.dark)),
+                      ButtonSegment(value: 'sepia', label: Text(S.sepia)),
+                    ],
+                    selected: {Prefs.themeMode},
+                    onSelectionChanged: (v) =>
+                        setState(() => Prefs.themeMode = v.first),
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
               ],
-              selected: {Prefs.themeMode},
-              onSelectionChanged: (v) => setState(() => Prefs.themeMode = v.first),
-              showSelectedIcon: false,
             ),
           ),
           _sectionTitle(S.reading),
@@ -147,6 +165,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(S.version),
             subtitle: Text('v$_version'),
           ),
+          if (kSponsorConfigured)
+            ListTile(
+              leading: Icon(Icons.local_cafe_outlined,
+                  color: Theme.of(context).colorScheme.primary),
+              title: Text(S.buyMilkTea),
+              subtitle: Text(S.buyMilkTeaHint, style: const TextStyle(fontSize: 12)),
+              onTap: () => launchUrl(Uri.parse(kSponsorUrl),
+                  mode: LaunchMode.externalApplication),
+            ),
         ],
         ),
       ),
